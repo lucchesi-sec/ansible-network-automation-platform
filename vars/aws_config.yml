@@ -1,0 +1,27 @@
+---
+# Basic AWS settings
+aws_region: us-east-1
+
+# Instance settings
+instance_type: t3.micro
+instance_name: web-server
+key_name: my-ansible-key
+
+# Network settings
+vpc_cidr: "172.31.0.0/20"
+availability_zone: "{{ aws_region }}a"
+
+# Security group
+security_group_name: web-sg
+security_group_description: "Allow SSH access"
+ssh_port: 22
+ssh_cidr: "0.0.0.0/0"  # allow from anywhere for now
+
+# Amazon Linux 2 AMI
+ami_id: ami-0fd26c36a83ae0088
+
+# Tags
+resource_tags:
+  Environment: development
+  Project: homelab
+  Owner: enzo

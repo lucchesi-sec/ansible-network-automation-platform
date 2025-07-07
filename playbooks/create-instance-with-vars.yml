@@ -1,0 +1,92 @@
+---
+- name: Create EC2 instance with variables
+  hosts: localhost
+
+  # Load variables from files
+  vars_files:
+    - ../vars/aws_config.yml
+    - ../vars/development.yml  # change to production.yml for prod
+
+  vars:
+    _state: present
+
+  tasks:
+    - name: Show what we're creating
+      ansible.builtin.debug:
+        msg: |
+          Creating {{ instance_name }} in {{ aws_region }}
+          Type: {{ instance_type }}
+          Env: {{ resource_tags.Environment }}
+
+    - name: Get default VPC
+      amazon.aws.ec2_vpc_net_info:
+        region: "{{ aws_region }}"
+        filters:
+          "is-default": "true"
+      register: vpc_info
+
+    - name: Create subnet
+      amazon.aws.ec2_vpc_subnet:
+        vpc_id: "{{ vpc_info.vpcs[0].vpc_id }}"
+        cidr: "{{ vpc_cidr }}"
+        az: "{{ availability_zone }}"
+        region: "{{ aws_region }}"
+        map_public: true
+        state: "{{ _state }}"
+        tags: "{{ resource_tags }}"
+      register: subnet_info
+
+    - name: Create internet gateway
+      amazon.aws.ec2_vpc_igw:
+        vpc_id: "{{ vpc_info.vpcs[0].vpc_id }}"
+        region: "{{ aws_region }}"
+        state: "{{ _state }}"
+        tags: "{{ resource_tags }}"
+      register: igw_info
+
+    - name: Create route table
+      amazon.aws.ec2_vpc_route_table:
+        vpc_id: "{{ vpc_info.vpcs[0].vpc_id }}"
+        region: "{{ aws_region }}"
+        routes:
+          - dest: "0.0.0.0/0"
+            gateway_id: "{{ igw_info.gateway_id }}"
+        subnets:
+          - "{{ subnet_info.subnet.id }}"
+        state: "{{ _state }}"
+        tags: "{{ resource_tags }}"
+
+    - name: Create security group
+      amazon.aws.ec2_security_group:
+        name: "{{ security_group_name }}"
+        description: "{{ security_group_description }}"
+        region: "{{ aws_region }}"
+        rules:
+          - proto: tcp
+            ports:
+              - "{{ ssh_port }}"
+            cidr_ip: "{{ ssh_cidr }}"
+        state: "{{ _state }}"
+        tags: "{{ resource_tags }}"
+
+    - name: Launch EC2 instance
+      amazon.aws.ec2_instance:
+        name: "{{ instance_name }}"
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ ami_id }}"
+        key_name: "{{ key_name }}"
+        security_groups:
+          - "{{ security_group_name }}"
+        vpc_subnet_id: "{{ subnet_info.subnet.id }}"
+        region: "{{ aws_region }}"
+        wait: true
+        state: "{{ _state }}"
+        tags: "{{ resource_tags }}"
+      register: instance
+
+    - name: Show results
+      ansible.builtin.debug:
+        msg: |
+          Created {{ instance_name }}
+          ID: {{ instance.instances[0].instance_id | default('N/A') }}
+          Region: {{ aws_region }}
