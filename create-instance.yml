@@ -24,6 +24,23 @@
         map_public: true
       register: subnet_info
 
+    - name: Create internet gateway
+      amazon.aws.ec2_vpc_igw:
+        vpc_id: "{{ vpc_info.vpcs[0].vpc_id }}"
+        region: "{{ aws_region }}"
+        state: present
+      register: igw_info
+
+    - name: Create route table
+      amazon.aws.ec2_vpc_route_table:
+        vpc_id: "{{ vpc_info.vpcs[0].vpc_id }}"
+        region: "{{ aws_region }}"
+        routes:
+          - dest: "0.0.0.0/0"
+            gateway_id: "{{ igw_info.gateway_id }}"
+        subnets:
+          - "{{ subnet_info.subnet.id }}"
+
     - name: Create security group
       amazon.aws.ec2_security_group:
         name: "my-security-group"
