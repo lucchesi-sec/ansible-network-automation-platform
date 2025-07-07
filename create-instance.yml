@@ -22,6 +22,7 @@
         az: "{{ aws_region }}a"
         region: "{{ aws_region }}"
         map_public: true
+        state: "{{ _state }}"
       register: subnet_info
 
     - name: Create internet gateway
@@ -40,6 +41,7 @@
             gateway_id: "{{ igw_info.gateway_id }}"
         subnets:
           - "{{ subnet_info.subnet.id }}"
+        state: "{{ _state }}"
 
     - name: Create security group
       amazon.aws.ec2_security_group:
