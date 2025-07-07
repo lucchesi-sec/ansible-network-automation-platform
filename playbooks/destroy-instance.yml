@@ -53,10 +53,10 @@
         lookup: id
         state: absent
       loop: "{{ route_table_info.route_tables | default([]) }}"
-      when: 
+      when:
         - not item.associations[0].main | default(false)
         - item.route_table_id is defined
-      ignore_errors: true
+      failed_when: false
 
     - name: Delete subnet
       amazon.aws.ec2_vpc_subnet:
@@ -67,7 +67,7 @@
         state: absent
       retries: 3
       delay: 10
-      ignore_errors: true
+      failed_when: false
 
     - name: Delete internet gateway
       amazon.aws.ec2_vpc_igw:
@@ -76,7 +76,7 @@
         state: absent
       retries: 3
       delay: 10
-      ignore_errors: true
+      failed_when: false
 
     - name: Show result
       ansible.builtin.debug:
