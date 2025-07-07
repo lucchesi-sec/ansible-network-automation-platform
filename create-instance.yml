@@ -1,0 +1,55 @@
+---
+- name: Create EC2 instance
+  hosts: localhost
+  gather_facts: false
+  
+  vars:
+    aws_region: us-east-1
+    instance_type: t3.micro
+    key_name: "my-ansible-key"
+    
+  tasks:
+    - name: Create security group
+      amazon.aws.ec2_security_group:
+        name: "ansible-learning-sg"
+        description: "Security group for learning Ansible"
+        region: "{{ aws_region }}"
+        rules:
+          - proto: tcp
+            ports:
+              - 22
+              - 80
+            cidr_ip: "0.0.0.0/0"
+        tags:
+          Name: "ansible-learning-sg"
+      register: security_group
+
+    - name: Find latest Amazon Linux AMI
+      amazon.aws.ec2_ami_info:
+        owners: amazon
+        filters:
+          name: "al2023-ami-*-x86_64"
+          state: available
+        region: "{{ aws_region }}"
+      register: ami_info
+
+    - name: Launch EC2 instance
+      amazon.aws.ec2_instance:
+        name: "my-ansible-instance"
+        instance_type: "{{ instance_type }}"
+        image_id: "{{ (ami_info.images | sort(attribute='creation_date') | last).image_id }}"
+        key_name: "{{ key_name }}"
+        security_groups:
+          - "{{ security_group.group_id }}"
+        region: "{{ aws_region }}"
+        wait: true
+        tags:
+          Name: "my-ansible-instance"
+      register: instance
+
+    - name: Show instance info
+      debug:
+        msg:
+          - "Instance ID: {{ instance.instances[0].instance_id }}"
+          - "Public IP: {{ instance.instances[0].public_ip_address }}"
+          - "SSH: ssh -i ~/.ssh/{{ key_name }}.pem ec2-user@{{ instance.instances[0].public_ip_address }}"

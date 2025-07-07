@@ -1,0 +1,48 @@
+# Ansible
+*.retry
+.ansible/
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Vault files (uncomment if using separate vault files)
+# vault/*.yml
+# **/vault.yml
+
+# Molecule
+.molecule/
+.cache/
+
+# Temporary files
+*.tmp
+*.log
+
+# Vagrant
+.vagrant/
+
+# Docker
+.docker/
+
+# Terraform 
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Local testing
+test_output/

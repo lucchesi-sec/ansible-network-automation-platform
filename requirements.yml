@@ -1,0 +1,4 @@
+---
+# Simple requirements for AWS automation
+collections:
+  - name: amazon.aws
