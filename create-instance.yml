@@ -39,6 +39,7 @@
         instance_type: "{{ instance_type }}"
         image_id: "{{ (ami_info.images | sort(attribute='creation_date') | last).image_id }}"
         key_name: "{{ key_name }}"
+        vpc_subnet_id: auto
         security_groups:
           - "{{ security_group.group_id }}"
         region: "{{ aws_region }}"
