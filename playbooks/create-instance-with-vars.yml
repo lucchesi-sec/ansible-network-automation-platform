@@ -84,9 +84,70 @@
         tags: "{{ resource_tags }}"
       register: instance
 
+    - name: Check if instance is ready
+      amazon.aws.ec2_instance_info:
+        region: "{{ aws_region }}"
+        instance_ids:
+          - "{{ instance.instances[0].instance_id }}"
+      register: my_instance
+
+    - name: Wait for SSH to be ready
+      ansible.builtin.wait_for:
+        host: "{{ my_instance.instances[0].public_ip_address }}"
+        port: 22
+        delay: 30
+        timeout: 300
+      when: my_instance.instances[0].state.name == "running"
+
+    - name: Add instance to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ my_instance.instances[0].public_ip_address }}"
+        groups: new_instances
+        ansible_user: ubuntu
+        ansible_ssh_private_key_file: "~/.ssh/{{ key_name }}.pem"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+      when: my_instance.instances[0].state.name == "running"
+
     - name: Show results
       ansible.builtin.debug:
         msg: |
           Created {{ instance_name }}
-          ID: {{ instance.instances[0].instance_id | default('N/A') }}
-          Region: {{ aws_region }}
+          ID: {{ instance.instances[0].instance_id }}
+          Status: {{ my_instance.instances[0].state.name }}
+          Public IP: {{ my_instance.instances[0].public_ip_address }}
+
+- name: Configure the new Ubuntu instance
+  hosts: new_instances
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait for instance to be ready
+      ansible.builtin.wait_for_connection:
+        delay: 10
+        timeout: 300
+
+    - name: Update package cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 0
+
+    - name: Upgrade all packages
+      ansible.builtin.apt:
+        upgrade: dist
+        autoremove: true
+
+    - name: Install automatic security updates
+      ansible.builtin.apt:
+        name: unattended-upgrades
+        state: present
+        update_cache: true
+
+    - name: Configure automatic security updates
+      ansible.builtin.systemd:
+        name: unattended-upgrades
+        enabled: true
+        state: started
+
+    - name: Show completion
+      ansible.builtin.debug:
+        msg: "Ubuntu instance is ready and fully updated!"

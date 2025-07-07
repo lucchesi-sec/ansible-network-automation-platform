@@ -17,8 +17,8 @@ security_group_description: "Allow SSH access"
 ssh_port: 22
 ssh_cidr: "0.0.0.0/0"  # allow from anywhere for now
 
-# Amazon Linux 2 AMI
-ami_id: ami-0fd26c36a83ae0088
+# Ubuntu 22.04 LTS AMI
+ami_id: ami-0866a3c8686eaeeba
 
 # Tags
 resource_tags:
