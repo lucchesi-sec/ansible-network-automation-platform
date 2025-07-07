@@ -1,42 +1,21 @@
-# Ansible AWS Setup
+# Ansible Cloud Playbook Project
 
-Basic Ansible playbook to create EC2 instances.
+## Overview
+This project demonstrates basic Ansible playbooks for managing cloud instances. It's designed for beginners learning infrastructure as code.
 
-## Setup
+## Project Structure
+- **inventory/**: Contains host definitions (e.g., production.ini).
+- **playbooks/**: Main playbooks for creating and destroying instances.
+- **group_vars/**: Shared variables for all hosts.
+- **roles/**: Reusable roles for common tasks.
 
-Install requirements:
-```bash
-pip install ansible
-ansible-galaxy collection install -r requirements.yml
-```
+## Getting Started
+1. Install Ansible: `pip install ansible`
+2. Edit inventory/production.ini with your hosts.
+3. Run a playbook: `ansible-playbook playbooks/create-instance.yml`
 
-Configure AWS credentials:
-```bash
-aws configure
-```
+## Common Troubleshooting
+- **Error: Host not found**: Check inventory file for correct hostnames.
+- **Permission issues**: Ensure your user has SSH access to hosts.
 
-Create key pair in AWS console and download the .pem file to `~/.ssh/`
-
-## Usage
-
-Edit `create-instance.yml` and set your key pair name:
-```yaml
-key_name: "your-key-name"
-```
-
-Run the playbook:
-```bash
-ansible-playbook create-instance.yml
-```
-
-## What it does
-
-- Creates security group allowing SSH and HTTP
-- Launches t3.micro instance with latest Amazon Linux
-- Outputs connection info
-
-## Connect to instance
-
-```bash
-ssh -i ~/.ssh/your-key.pem ec2-user@PUBLIC_IP
-```
+For more details, see [Ansible Documentation](https://docs.ansible.com/).
