@@ -1,28 +1,31 @@
 ---
 - name: Update packages on EC2 instance
   hosts: ec2_servers
-  remote_user: ec2-user
-  become: yes
+  remote_user: ubuntu
+  become: true
 
   tasks:
     - name: Show what we're updating
       ansible.builtin.debug:
         msg: "Updating packages on {{ inventory_hostname }}"
 
+    - name: Update package cache
+      ansible.builtin.apt:
+        update_cache: true
+
     - name: Update all packages
-      ansible.builtin.yum:
-        name: "*"
-        state: latest
+      ansible.builtin.apt:
+        upgrade: dist
 
     - name: Install automatic security updates
-      ansible.builtin.yum:
-        name: yum-cron
+      ansible.builtin.apt:
+        name: unattended-upgrades
         state: present
 
     - name: Start automatic security updates
-      ansible.builtin.service:
-        name: yum-cron
-        enabled: yes
+      ansible.builtin.systemd:
+        name: unattended-upgrades
+        enabled: true
         state: started
 
     - name: Show completion message
