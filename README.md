@@ -28,18 +28,18 @@ This platform provides production-ready network automation for enterprise enviro
 ### 🎯 **Quick Start Pathways**
 
 #### 🚀 **New Users - Start Here**
-1. **[Getting Started Guide](docs/getting-started.md)** - Platform introduction and first steps
+1. **[Getting Started Guide](docs/user-guides/getting-started.md)** - Platform introduction and first steps
 2. **[User Guide](docs/user-guides/USER_GUIDE.md)** - Complete platform reference
-3. **[Production Checklist](docs/guides/deployment/PRODUCTION_CHECKLIST.md)** - Pre-deployment validation
+3. **[Enterprise Guide](docs/enterprise/README.md)** - Pre-deployment validation
 
 #### 🏢 **Enterprise Deployment**
-1. **[Enterprise Architecture](docs/architecture/system-architecture.md)** - System architecture overview
-2. **[Consolidated Guide](docs/CONSOLIDATED_GUIDE.md)** - Complete deployment reference
-3. **[Security Framework](docs/security/)** - Security implementation
+1. **[Enterprise Architecture](docs/enterprise/README.md)** - System architecture overview
+2. **[Technical Reference](docs/TECHNICAL_REFERENCE.md)** - Complete deployment reference
+3. **[Security Framework](docs/security/README.md)** - Security implementation
 
 #### 🔧 **Operations & Maintenance**
-1. **[Best Practices](docs/best-practices.md)** - Operational procedures
-2. **[Troubleshooting](docs/guides/troubleshooting/)** - Problem resolution
+1. **[Advanced Guide](docs/user-guides/advanced-guide.md)** - Operational procedures
+2. **[Troubleshooting](docs/guides/troubleshooting/README.md)** - Problem resolution
 3. **[Documentation Directory](docs/)** - All documentation
 
 ---
