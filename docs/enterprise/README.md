@@ -1,12 +1,12 @@
 # Enterprise Network Deployment System
 *Quick reference for the cisco_network_automation implementation*
 
-> 📖 **Complete Documentation**: See [Documentation Index](../../DOCUMENTATION_INDEX.md) for comprehensive guides
+> 📖 **Complete Documentation**: See [Technical Reference](../TECHNICAL_REFERENCE.md) for comprehensive guides
 > 
-> **API Reference**: [API_REFERENCE.md](../../API_REFERENCE.md)  
-> **Architecture Guide**: [ARCHITECTURE.md](../../ARCHITECTURE.md)  
-> **User Guide**: [docs/enterprise-deployment.md](../../docs/enterprise-deployment.md)  
-> **Security Guide**: [SECURITY_IMPLEMENTATION_GUIDE.md](../../SECURITY_IMPLEMENTATION_GUIDE.md)
+> **API Reference**: [API Reference](../reference/api.md)  
+> **Architecture Guide**: [Architecture Overview](../architecture/system-architecture.md)  
+> **User Guide**: [User Guide](../user-guides/USER_GUIDE.md)  
+> **Security Guide**: [Security Framework](../security/README.md)
 
 ## Quick Start
 
@@ -66,8 +66,8 @@ ansible-playbook playbooks/rollback_deployment.yml -i inventory/production.yml
 
 ## Production Checklist
 
-See [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md) for detailed deployment validation.
+See [Production Checklist](../guides/deployment/PRODUCTION_CHECKLIST.md) for detailed deployment validation.
 
 ---
 
-**For complete documentation, troubleshooting, and best practices**, refer to the [comprehensive documentation suite](../../DOCUMENTATION_INDEX.md) in the project root.
+**For complete documentation, troubleshooting, and best practices**, refer to the [Technical Reference](../TECHNICAL_REFERENCE.md) and [Documentation Hub](../README.md).
