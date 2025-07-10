@@ -1,0 +1,64 @@
+---
+# BGP Neighbor Configuration Tasks
+# Configures BGP neighbors with appropriate settings
+
+- name: Configure iBGP neighbors
+  ios_config:
+    lines:
+      - neighbor {{ item.neighbor_ip }} remote-as {{ item.remote_as | default(bgp_asn) }}
+      - neighbor {{ item.neighbor_ip }} description {{ item.description | default('iBGP neighbor') }}
+      - neighbor {{ item.neighbor_ip }} next-hop-self
+      - neighbor {{ item.neighbor_ip }} send-community both
+      - "{% if bgp_authentication_key %}neighbor {{ item.neighbor_ip }} password {{ bgp_authentication_key }}{% endif %}"
+      - neighbor {{ item.neighbor_ip }} timers {{ bgp_keepalive }} {{ bgp_holdtime }}
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: 
+    - item.remote_as | default(bgp_asn) | string == bgp_asn | string
+    - item.neighbor_ip is defined
+
+- name: Configure eBGP neighbors
+  ios_config:
+    lines:
+      - neighbor {{ item.neighbor_ip }} remote-as {{ item.remote_as }}
+      - neighbor {{ item.neighbor_ip }} description {{ item.description | default('eBGP neighbor') }}
+      - neighbor {{ item.neighbor_ip }} send-community standard
+      - "{% if bgp_authentication_key %}neighbor {{ item.neighbor_ip }} password {{ bgp_authentication_key }}{% endif %}"
+      - neighbor {{ item.neighbor_ip }} timers {{ bgp_keepalive }} {{ bgp_holdtime }}
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: 
+    - item.remote_as | default(bgp_asn) | string != bgp_asn | string
+    - item.neighbor_ip is defined
+
+- name: Configure BGP neighbor security settings
+  ios_config:
+    lines:
+      - neighbor {{ item.neighbor_ip }} maximum-prefix {{ item.max_prefix | default(100000) }} {{ bgp_security.max_prefix_warning_threshold }} warning-only
+      - neighbor {{ item.neighbor_ip }} ttl-security hops {{ item.ttl_hops | default(bgp_security.ttl_security_hops) }}
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: 
+    - item.neighbor_ip is defined
+    - item.security_enabled | default(true)
+
+- name: Apply route maps to neighbors
+  ios_config:
+    lines:
+      - neighbor {{ item.neighbor_ip }} route-map {{ item.route_map_in }} in
+      - neighbor {{ item.neighbor_ip }} route-map {{ item.route_map_out }} out
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: 
+    - item.neighbor_ip is defined
+    - item.route_map_in is defined or item.route_map_out is defined
+
+- name: Display BGP neighbor configuration completion
+  debug:
+    msg:
+      - "BGP neighbor configuration completed"
+      - "Total neighbors configured: {{ (bgp_neighbors | default([])) | length }}"

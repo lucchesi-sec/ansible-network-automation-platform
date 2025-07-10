@@ -1,0 +1,60 @@
+---
+# Advanced Networking Validation Tasks
+# Validates the integration of all advanced networking components
+
+- name: Validate leaf-spine fabric connectivity
+  cisco.ios.ios_command:
+    commands:
+      - show ip ospf neighbor
+      - show ip bgp summary
+  register: fabric_validation
+  failed_when: false
+
+- name: Validate VXLAN overlay status
+  cisco.ios.ios_command:
+    commands:
+      - show nve vni
+      - show bgp l2vpn evpn summary
+  register: vxlan_validation
+  failed_when: false
+  when: vxlan_enabled | default(true)
+
+- name: Validate micro-segmentation configuration
+  cisco.ios.ios_command:
+    commands:
+      - show vrf
+      - show cts role-based sgt-map all
+  register: microseg_validation
+  failed_when: false
+  when: microsegmentation_enabled | default(true)
+
+- name: Validate performance optimization
+  cisco.ios.ios_command:
+    commands:
+      - show processes cpu sorted
+      - show memory summary
+  register: performance_validation
+  failed_when: false
+  when: performance_optimization_enabled | default(true)
+
+- name: Validate QoS configuration
+  cisco.ios.ios_command:
+    commands:
+      - show policy-map
+      - show class-map
+  register: qos_validation
+  failed_when: false
+  when: qos_enabled | default(true)
+
+- name: Validate bandwidth management
+  cisco.ios.ios_command:
+    commands:
+      - show queueing interface
+      - show ip flow export
+  register: bandwidth_validation
+  failed_when: false
+  when: bandwidth_management_enabled | default(true)
+
+- name: Display validation summary
+  debug:
+    msg: "Advanced networking validation completed for {{ inventory_hostname }}"

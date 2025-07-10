@@ -1,0 +1,92 @@
+---
+# Zero Trust Policies Implementation
+# Implements comprehensive zero trust network access policies
+
+- name: Enable zero trust policy engine
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust policy-engine enable
+      - zero-trust default-action deny
+      - zero-trust verification-interval {{ verification_interval }}
+      - zero-trust identity-timeout {{ identity_timeout }}
+    parents: configure terminal
+  notify: restart policy engine
+
+- name: Configure identity sources
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust identity-source {{ item.type }}
+      - server {{ item.server }}
+      - backup-server {{ item.backup_server | default('') }}
+      - domain {{ item.domain | default('') }}
+      - port {{ item.port | default('') }}
+    parents: configure terminal
+  loop: "{{ identity_sources }}"
+  when: identity_sources is defined
+
+- name: Configure zero trust access policies
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust policy {{ item.name }}
+      - description {{ item.description | default('Zero trust access policy') }}
+      - source-zone {{ item.src_zone }}
+      - destination-zone {{ item.dst_zone }}
+      - action {{ item.action }}
+      - verification {{ item.verification | default('required') }}
+      - logging {{ item.logging | default('enabled') }}
+    parents: configure terminal
+  loop: "{{ zero_trust_policies | default([]) }}"
+
+- name: Configure micro-segmentation rules
+  cisco.ios.ios_config:
+    lines:
+      - micro-segment rule {{ item.src_zone }}-to-{{ item.dst_zone }}
+      - source-zone {{ item.src_zone }}
+      - destination-zone {{ item.dst_zone }}
+      - action {{ item.action }}
+      - verification required
+    parents: configure terminal
+  loop: "{{ default_microsegmentation_rules }}"
+  when: default_microsegmentation_rules is defined
+
+- name: Configure certificate validation
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust certificate validation
+      - root-ca {{ pki_root_ca }}
+      - device-template {{ device_certificate_template }}
+      - user-template {{ user_certificate_template }}
+      - renewal-threshold {{ certificate_renewal_threshold }}
+    parents: configure terminal
+  when: pki_root_ca is defined
+
+- name: Enable continuous verification
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust continuous-verification enable
+      - verification-method {{ item }}
+    parents: configure terminal
+  loop: "{{ verification_methods }}"
+  when: verification_methods is defined
+
+- name: Configure zero trust logging
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust logging enable
+      - zero-trust logging level {{ logging_level | default('informational') }}
+      - zero-trust logging facility {{ logging_facility | default('local6') }}
+      - zero-trust logging server {{ logging_server }}
+    parents: configure terminal
+  when: logging_server is defined
+
+- name: Verify zero trust configuration
+  cisco.ios.ios_command:
+    commands:
+      - show zero-trust policy status
+      - show zero-trust identity-sources
+      - show zero-trust verification status
+  register: zt_verification
+
+- name: Display zero trust status
+  debug:
+    var: zt_verification.stdout_lines

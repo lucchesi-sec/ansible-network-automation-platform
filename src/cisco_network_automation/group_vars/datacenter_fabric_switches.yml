@@ -1,0 +1,68 @@
+---
+# Data Center Fabric Switches Group Variables
+# Advanced networking configuration for modern datacenter fabric
+
+# Deployment configuration
+deployment_type: datacenter_fabric
+fabric_architecture: leaf_spine
+datacenter_domain: dc.example.com
+dns_servers:
+  - 8.8.8.8
+  - 8.8.4.4
+
+# OSPF configuration for underlay
+ospf_area: 0.0.0.0
+ospf_process_id: 1
+ospf_hello_interval: 1
+ospf_dead_interval: 3
+
+# BGP configuration for overlay
+bgp_as: 65000
+bgp_router_id: "{{ ansible_host }}"
+bgp_evpn_enabled: true
+
+# VXLAN configuration
+vxlan_enabled: true
+vxlan_loopback_id: 100
+vxlan_anycast_gateway_mac: 0000.1111.2222
+vxlan_source_mask: 255.255.255.255
+
+# Security configuration
+security_level: critical
+microsegmentation_enabled: true
+security_hardening_enabled: true
+
+# High availability configuration
+ha_enabled: true
+redundancy_mode: active_active
+stp_mode: mst
+stp_priority: 32768
+
+# Monitoring and logging
+logging_enabled: true
+snmp_enabled: true
+ntp_enabled: true
+
+# Port-channel configuration
+lacp_enabled: true
+lacp_system_priority: 32768
+port_channel_load_balance: src-dst-mixed-ip-port
+
+# Performance optimization
+performance_optimization_enabled: true
+cpu_optimization_enabled: true
+memory_optimization_enabled: true
+interface_optimization_enabled: true
+
+# QoS configuration
+qos_enabled: true
+traffic_engineering_enabled: true
+
+# Bandwidth management
+bandwidth_management_enabled: true
+traffic_shaping_enabled: true
+rate_limiting_enabled: true
+
+# Documentation generation
+generate_documentation: true
+backup_enabled: true

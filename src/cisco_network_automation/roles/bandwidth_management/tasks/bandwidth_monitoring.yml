@@ -1,0 +1,67 @@
+---
+# Bandwidth Monitoring Tasks
+# Configures bandwidth monitoring and reporting
+
+- name: Configure NetFlow for bandwidth monitoring
+  cisco.ios.ios_config:
+    lines:
+      - ip flow-export destination {{ item.collector_ip }} {{ item.port }}
+      - ip flow-export version {{ item.version }}
+      - ip flow-export source {{ item.source_interface }}
+      - ip flow-cache timeout active {{ item.active_timeout }}
+      - ip flow-cache timeout inactive {{ item.inactive_timeout }}
+    match: line
+  loop: "{{ netflow_bandwidth_collectors }}"
+  when: netflow_bandwidth_collectors is defined
+
+- name: Enable NetFlow on monitored interfaces
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - ip flow ingress
+      - ip flow egress
+      - ip route-cache flow
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ bandwidth_monitored_interfaces }}"
+  when: bandwidth_monitored_interfaces is defined
+
+- name: Configure SNMP for bandwidth monitoring
+  cisco.ios.ios_config:
+    lines:
+      - snmp-server enable traps interface
+      - snmp-server host {{ item.host }} version {{ item.version }} {{ item.community }}
+    match: line
+  loop: "{{ snmp_bandwidth_monitors }}"
+  when: snmp_bandwidth_monitors is defined
+
+- name: Configure interface load monitoring
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - load-interval {{ item.interval }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ load_interval_interfaces }}"
+  when: load_interval_interfaces is defined
+
+- name: Configure IP accounting for bandwidth tracking
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - ip accounting output-packets
+      - ip accounting access-violations
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ ip_accounting_interfaces }}"
+  when: ip_accounting_interfaces is defined
+
+- name: Configure bandwidth threshold monitoring
+  cisco.ios.ios_config:
+    lines:
+      - event manager applet {{ item.applet_name }}
+      - event interface name {{ item.interface }} parameter {{ item.parameter }} entry-op {{ item.operation }} entry-val {{ item.threshold }}
+      - action 1.0 syslog msg "Bandwidth threshold exceeded on {{ item.interface }}"
+    match: line
+  loop: "{{ bandwidth_thresholds }}"
+  when: bandwidth_thresholds is defined

@@ -1,0 +1,57 @@
+---
+# VNI Mapping Configuration Tasks
+# Configures VXLAN Network Identifier mappings
+
+- name: Configure VXLAN VNI-to-VLAN mappings
+  cisco.ios.ios_config:
+    lines:
+      - vlan {{ item.vlan_id }}
+      - vn-segment {{ item.vni }}
+      - name {{ item.name }}
+    match: line
+  loop: "{{ vxlan_vni_mappings }}"
+  when: vxlan_vni_mappings is defined
+
+- name: Configure VXLAN SVI interfaces
+  cisco.ios.ios_config:
+    lines:
+      - interface vlan{{ item.vlan_id }}
+      - description {{ item.description }}
+      - ip address {{ item.ip_address }} {{ item.subnet_mask }}
+      - fabric forwarding mode anycast-gateway
+      - no shutdown
+    parents: interface vlan{{ item.vlan_id }}
+    match: line
+  loop: "{{ vxlan_svi_interfaces }}"
+  when: vxlan_svi_interfaces is defined
+
+- name: Configure VXLAN anycast gateway
+  cisco.ios.ios_config:
+    lines:
+      - fabric forwarding anycast-gateway-mac {{ vxlan_anycast_gateway_mac }}
+    match: line
+  when: anycast_gateway_enabled | bool
+
+- name: Configure VXLAN distributed gateway
+  cisco.ios.ios_config:
+    lines:
+      - interface vlan{{ item.vlan_id }}
+      - ip directed-broadcast
+      - ip forward-protocol nd
+    parents: interface vlan{{ item.vlan_id }}
+    match: line
+  loop: "{{ vxlan_distributed_gateways }}"
+  when: vxlan_distributed_gateways is defined
+
+- name: Configure VXLAN tenant VRF mappings
+  cisco.ios.ios_config:
+    lines:
+      - vrf context {{ item.vrf_name }}
+      - vni {{ item.vni }}
+      - rd {{ item.rd }}
+      - address-family ipv4 unicast
+      - route-target import {{ item.rt_import }}
+      - route-target export {{ item.rt_export }}
+    match: line
+  loop: "{{ vxlan_tenant_vrfs }}"
+  when: multi_tenancy_enabled | bool and vxlan_tenant_vrfs is defined

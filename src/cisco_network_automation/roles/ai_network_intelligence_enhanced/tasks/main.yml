@@ -1,0 +1,212 @@
+---
+# AI Network Intelligence Enhanced - Main Tasks
+# Comprehensive ML/AI platform implementation extending existing capabilities
+
+- name: Display AI Network Intelligence Enhanced banner
+  debug:
+    msg: |
+      ═══════════════════════════════════════════════════════════
+      🤖 AI Network Intelligence Enhanced Platform
+      ═══════════════════════════════════════════════════════════
+      Environment: {{ ml_infrastructure.environment }}
+      ML Pipeline: {{ ml_pipeline_enabled | default(true) }}
+      Models Enabled: {{ ml_models.keys() | list | length }}
+      ChatOps: {{ chatops_integration_enabled | default(true) }}
+      Legacy Compatibility: {{ legacy_compatibility_mode | default(true) }}
+      ═══════════════════════════════════════════════════════════
+
+# Pre-flight Checks and Validation
+- name: Include pre-flight validation tasks
+  include_tasks: validation/pre_flight_checks.yml
+  tags: [validation, pre_flight]
+
+# Legacy Integration (Backward Compatibility)
+- name: Include legacy AI optimization integration
+  include_tasks: legacy_integration/cisco_ai_optimization.yml
+  when: 
+    - legacy_compatibility_mode | default(true)
+    - ai_optimization_enabled | default(true)
+  tags: [legacy, integration, ai_optimization]
+
+- name: Include legacy automation controller integration
+  include_tasks: legacy_integration/automation_controller.yml
+  when:
+    - legacy_compatibility_mode | default(true)
+    - automation_controller_enabled | default(true)
+  tags: [legacy, integration, automation]
+
+# ML Infrastructure Setup
+- name: Include ML infrastructure setup
+  include_tasks: infrastructure/ml_infrastructure.yml
+  when: ml_pipeline_enabled | default(true)
+  tags: [infrastructure, ml_setup]
+
+- name: Include data pipeline setup
+  include_tasks: infrastructure/data_pipeline.yml
+  when: ml_pipeline_enabled | default(true)
+  tags: [infrastructure, data_pipeline]
+
+- name: Include storage systems setup
+  include_tasks: infrastructure/storage_systems.yml
+  when: ml_pipeline_enabled | default(true)
+  tags: [infrastructure, storage]
+
+# Model Management
+- name: Include model training pipeline
+  include_tasks: models/training_pipeline.yml
+  when: ml_pipeline_enabled | default(true)
+  tags: [models, training]
+
+- name: Include model serving setup
+  include_tasks: models/serving_pipeline.yml
+  when: ml_pipeline_enabled | default(true)
+  tags: [models, serving]
+
+- name: Include model monitoring setup
+  include_tasks: models/monitoring_setup.yml
+  when: ml_pipeline_enabled | default(true)
+  tags: [models, monitoring]
+
+# Automation and Orchestration
+- name: Include automation rules engine
+  include_tasks: automation/rules_engine.yml
+  when: automation_controller_enabled | default(true)
+  tags: [automation, rules]
+
+- name: Include workflow orchestration
+  include_tasks: automation/workflow_orchestration.yml
+  when: automation_controller_enabled | default(true)
+  tags: [automation, workflows]
+
+- name: Include decision making framework
+  include_tasks: automation/decision_framework.yml
+  when: automation_controller_enabled | default(true)
+  tags: [automation, decisions]
+
+# ChatOps Integration
+- name: Include ChatOps platform setup
+  include_tasks: chatops/platform_setup.yml
+  when: chatops_integration_enabled | default(true)
+  tags: [chatops, integration]
+
+- name: Include ChatOps command registration
+  include_tasks: chatops/command_registration.yml
+  when: chatops_integration_enabled | default(true)
+  tags: [chatops, commands]
+
+- name: Include notification system setup
+  include_tasks: chatops/notification_system.yml
+  when: chatops_integration_enabled | default(true)
+  tags: [chatops, notifications]
+
+# Monitoring and Observability
+- name: Include comprehensive monitoring setup
+  include_tasks: monitoring/prometheus_setup.yml
+  tags: [monitoring, prometheus]
+
+- name: Include dashboard deployment
+  include_tasks: monitoring/grafana_dashboards.yml
+  tags: [monitoring, dashboards]
+
+- name: Include alerting configuration
+  include_tasks: monitoring/alerting_setup.yml
+  tags: [monitoring, alerting]
+
+- name: Include distributed tracing setup
+  include_tasks: monitoring/tracing_setup.yml
+  tags: [monitoring, tracing]
+
+# Security and Compliance
+- name: Include security hardening
+  include_tasks: security/security_hardening.yml
+  tags: [security, hardening]
+
+- name: Include compliance setup
+  include_tasks: security/compliance_setup.yml
+  tags: [security, compliance]
+
+- name: Include audit logging setup
+  include_tasks: security/audit_logging.yml
+  tags: [security, audit]
+
+# API and Integration Layer
+- name: Include API gateway setup
+  include_tasks: api/gateway_setup.yml
+  when: ml_pipeline_enabled | default(true)
+  tags: [api, gateway]
+
+- name: Include external integrations
+  include_tasks: api/external_integrations.yml
+  tags: [api, integrations]
+
+# Performance Optimization
+- name: Include performance tuning
+  include_tasks: optimization/performance_tuning.yml
+  tags: [optimization, performance]
+
+- name: Include caching setup
+  include_tasks: optimization/caching_setup.yml
+  tags: [optimization, caching]
+
+# Final Validation and Health Checks
+- name: Include comprehensive validation
+  include_tasks: validation/comprehensive_validation.yml
+  tags: [validation, final]
+
+- name: Include health check setup
+  include_tasks: validation/health_checks.yml
+  tags: [validation, health]
+
+# Post-deployment Configuration
+- name: Include post-deployment tasks
+  include_tasks: post_deployment/configuration_sync.yml
+  tags: [post_deployment, sync]
+
+- name: Include documentation generation
+  include_tasks: post_deployment/documentation_generation.yml
+  tags: [post_deployment, docs]
+
+# Display Final Status
+- name: Display deployment summary
+  debug:
+    msg: |
+      ═══════════════════════════════════════════════════════════
+      🎯 AI Network Intelligence Enhanced - Deployment Complete
+      ═══════════════════════════════════════════════════════════
+      Environment: {{ ml_infrastructure.environment }}
+      
+      ✅ Infrastructure Status:
+      - ML Cluster: {{ 'Deployed' if ml_pipeline_enabled else 'Skipped' }}
+      - Data Pipeline: {{ 'Active' if ml_pipeline_enabled else 'Skipped' }}
+      - Storage Systems: {{ 'Configured' if ml_pipeline_enabled else 'Skipped' }}
+      
+      ✅ Models Status:
+      {% for model_name, model_config in ml_models.items() %}
+      - {{ model_name | title | replace('_', ' ') }}: {{ 'Enabled' if model_config.enabled else 'Disabled' }}
+      {% endfor %}
+      
+      ✅ Integration Status:
+      - Legacy AI Optimization: {{ 'Compatible' if legacy_compatibility_mode else 'Migrated' }}
+      - Automation Controller: {{ 'Integrated' if automation_controller_enabled else 'Disabled' }}
+      - ChatOps: {{ 'Active' if chatops_integration_enabled else 'Disabled' }}
+      
+      ✅ Access Points:
+      - ML Platform API: {{ serving_config.api_gateway.host }}:{{ serving_config.api_gateway.port }}
+      - MLflow UI: {{ ml_infrastructure.storage.model_registry.endpoint }}
+      - Grafana Dashboards: {{ monitoring_config.grafana.endpoint }}
+      - Airflow UI: {{ automation_config.workflows.webserver_host }}:{{ automation_config.workflows.webserver_port }}
+      
+      📚 Next Steps:
+      1. Review model performance in Grafana dashboards
+      2. Configure ChatOps commands for your team
+      3. Set up automated training schedules
+      4. Review security and compliance settings
+      
+      ═══════════════════════════════════════════════════════════
+  tags: [summary]
+
+# Error Handling and Rollback
+- name: Include error handling setup
+  include_tasks: error_handling/rollback_procedures.yml
+  when: deployment_failed | default(false)
+  tags: [error_handling, rollback]

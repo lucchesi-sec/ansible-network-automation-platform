@@ -1,0 +1,79 @@
+---
+# Phase 4 Integration Testing - Security & AI Validation
+
+- name: Test Zero Trust Framework Integration
+  hosts: localhost
+  gather_facts: false
+  vars:
+    test_results: []
+  tasks:
+    - name: Validate Zero Trust Roles Structure
+      stat:
+        path: "{{ playbook_dir }}/../roles/{{ item }}"
+      register: zt_roles_check
+      loop:
+        - cisco_zero_trust_policies
+        - cisco_identity_based_networking
+        - cisco_micro_segmentation_advanced
+        - cisco_software_defined_perimeter
+        - cisco_continuous_verification
+
+    - name: Validate AI Automation Roles Structure
+      stat:
+        path: "{{ playbook_dir }}/../roles/{{ item }}"
+      register: ai_roles_check
+      loop:
+        - cisco_automation_controller
+        - cisco_predictive_analytics
+        - cisco_self_healing_networks
+        - cisco_ai_optimization
+        - cisco_event_driven_automation
+
+    - name: Check Zero Trust Group Variables
+      stat:
+        path: "{{ playbook_dir }}/../group_vars/{{ item }}"
+      register: zt_vars_check
+      loop:
+        - zero_trust_controllers.yml
+        - identity_switches.yml
+        - microsegmentation_switches.yml
+        - perimeter_routers.yml
+        - verification_appliances.yml
+
+    - name: Validate Security AI Inventory
+      stat:
+        path: "{{ playbook_dir }}/../inventory/security_ai.yml"
+      register: security_ai_inventory
+
+    - name: Check Global Configuration
+      stat:
+        path: "{{ playbook_dir }}/../group_vars/all.yml"
+      register: global_config
+
+    - name: Validate Role Task Files
+      stat:
+        path: "{{ playbook_dir }}/../roles/{{ item.role }}/tasks/main.yml"
+      register: task_files_check
+      loop:
+        - { role: cisco_zero_trust_policies }
+        - { role: cisco_identity_based_networking }
+        - { role: cisco_micro_segmentation_advanced }
+        - { role: cisco_software_defined_perimeter }
+        - { role: cisco_continuous_verification }
+        - { role: cisco_automation_controller }
+        - { role: cisco_predictive_analytics }
+        - { role: cisco_self_healing_networks }
+        - { role: cisco_ai_optimization }
+        - { role: cisco_event_driven_automation }
+
+    - name: Generate Phase 4 Integration Report
+      template:
+        src: phase4_integration_report.j2
+        dest: "{{ playbook_dir }}/../logs/phase4_integration_test.log"
+      vars:
+        zero_trust_roles: "{{ zt_roles_check.results }}"
+        ai_roles: "{{ ai_roles_check.results }}"
+        zt_variables: "{{ zt_vars_check.results }}"
+        inventory_status: "{{ security_ai_inventory }}"
+        config_status: "{{ global_config }}"
+        task_validation: "{{ task_files_check.results }}"

@@ -1,0 +1,55 @@
+---
+# Flood and Learn Configuration Tasks
+# Configures VXLAN flood and learn settings
+
+- name: Configure VXLAN flood and learn mode
+  cisco.ios.ios_config:
+    lines:
+      - hardware access-list tcam region ing-l3-vlan-qos 256
+      - hardware access-list tcam region racl 512
+      - hardware access-list tcam region e-racl 256
+    match: line
+  when: flood_and_learn_enabled | bool
+
+- name: Configure head-end replication
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ nve_interface }}
+      - member vni {{ item.vni }}
+      - ingress-replication protocol {{ nve_ingress_replication }}
+    parents: interface {{ nve_interface }}
+    match: line
+  loop: "{{ vxlan_head_end_replication }}"
+  when: head_end_replication | bool and vxlan_head_end_replication is defined
+
+- name: Configure VXLAN multicast groups for BUM traffic
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ nve_interface }}
+      - member vni {{ item.vni }}
+      - mcast-group {{ item.multicast_group }}
+    parents: interface {{ nve_interface }}
+    match: line
+  loop: "{{ vxlan_multicast_mappings }}"
+  when: not head_end_replication | bool and vxlan_multicast_mappings is defined
+
+- name: Configure VXLAN suppress ARP
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ nve_interface }}
+      - member vni {{ item.vni }}
+      - suppress-arp
+    parents: interface {{ nve_interface }}
+    match: line
+  loop: "{{ vxlan_suppress_arp_vnis }}"
+  when: nve_suppress_arp | bool and vxlan_suppress_arp_vnis is defined
+
+- name: Configure VXLAN local switching
+  cisco.ios.ios_config:
+    lines:
+      - interface vlan{{ item.vlan_id }}
+      - fabric forwarding mode proxy-gateway
+    parents: interface vlan{{ item.vlan_id }}
+    match: line
+  loop: "{{ vxlan_local_switching }}"
+  when: vxlan_local_switching is defined

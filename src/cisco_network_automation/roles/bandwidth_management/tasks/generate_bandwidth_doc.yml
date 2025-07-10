@@ -1,0 +1,42 @@
+---
+# Generate Bandwidth Documentation Tasks
+# Creates documentation for bandwidth management configuration
+
+- name: Create bandwidth documentation directory
+  file:
+    path: "{{ documentation_path }}/bandwidth"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate bandwidth policies documentation
+  template:
+    src: bandwidth_policies.md.j2
+    dest: "{{ documentation_path }}/bandwidth/bandwidth_policies.md"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate traffic shaping documentation
+  template:
+    src: traffic_shaping.md.j2
+    dest: "{{ documentation_path }}/bandwidth/{{ inventory_hostname }}_traffic_shaping.md"
+    mode: '0644'
+  delegate_to: localhost
+
+- name: Generate rate limiting documentation
+  template:
+    src: rate_limiting.md.j2
+    dest: "{{ documentation_path }}/bandwidth/rate_limiting.md"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate bandwidth monitoring documentation
+  template:
+    src: bandwidth_monitoring.md.j2
+    dest: "{{ documentation_path }}/bandwidth/bandwidth_monitoring.md"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true

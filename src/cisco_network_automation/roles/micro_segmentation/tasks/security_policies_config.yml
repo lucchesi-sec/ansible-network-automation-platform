@@ -1,0 +1,53 @@
+---
+# Security Policies Configuration Tasks
+# Configures security policies for micro-segmentation
+
+- name: Configure tenant security ACLs
+  cisco.ios.ios_config:
+    lines:
+      - ip access-list extended {{ item.acl_name }}
+      - "{{ item.ace }}"
+    match: line
+  loop: "{{ tenant_security_acls }}"
+  when: tenant_security_acls is defined
+
+- name: Configure security group tags for tenants
+  cisco.ios.ios_config:
+    lines:
+      - cts role-based sgt-map {{ item.source_ip }} sgt {{ item.sgt }}
+    match: line
+  loop: "{{ tenant_security_group_tags }}"
+  when: tenant_security_group_tags is defined
+
+- name: Configure security group access control
+  cisco.ios.ios_config:
+    lines:
+      - cts role-based access-list {{ item.acl_name }}
+      - permit ip sgt {{ item.source_sgt }} dgt {{ item.dest_sgt }}
+    match: line
+  loop: "{{ sgt_access_policies }}"
+  when: sgt_access_policies is defined
+
+- name: Configure tenant firewall policies
+  cisco.ios.ios_config:
+    lines:
+      - class-map match-any {{ item.class_name }}
+      - match access-group name {{ item.acl_name }}
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - "{{ item.action }}"
+    match: line
+  loop: "{{ tenant_firewall_policies }}"
+  when: tenant_firewall_policies is defined
+
+- name: Configure trust enforcement for tenants
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - cts manual
+      - cts sgt {{ item.sgt }}
+      - cts trusted
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ tenant_trust_interfaces }}"
+  when: tenant_trust_interfaces is defined

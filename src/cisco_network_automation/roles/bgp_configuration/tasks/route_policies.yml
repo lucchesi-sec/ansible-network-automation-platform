@@ -1,0 +1,63 @@
+---
+# BGP Route Policies Tasks
+# Configures route maps, communities, and policy configurations
+
+- name: Configure BGP communities
+  ios_config:
+    lines:
+      - ip community-list standard {{ item.name }} permit {{ item.value }}
+    parents: []
+  loop: "{{ bgp_communities }}"
+  when: bgp_communities is defined
+
+- name: Configure BGP redistribution route maps
+  ios_config:
+    lines:
+      - route-map {{ item.route_map }} permit 10
+      - set community {{ bgp_communities[0].value | default('65001:100') }}
+    parents: []
+  loop: "{{ bgp_redistribute }}"
+  when: bgp_redistribute is defined
+
+- name: Configure BGP redistribution
+  ios_config:
+    lines:
+      - redistribute {{ item.protocol }} route-map {{ item.route_map }}
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_redistribute }}"
+  when: bgp_redistribute is defined
+
+- name: Configure default originate for eBGP neighbors
+  ios_config:
+    lines:
+      - neighbor {{ item.neighbor_ip }} default-originate
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: 
+    - item.neighbor_ip is defined
+    - item.remote_as | default(bgp_asn) | string != bgp_asn | string
+    - item.default_originate | default(false)
+
+- name: Configure local preference for iBGP
+  ios_config:
+    lines:
+      - bgp default local-preference {{ bgp_local_preference }}
+    parents:
+      - router bgp {{ bgp_asn }}
+
+- name: Configure MED attribute
+  ios_config:
+    lines:
+      - default-metric {{ bgp_med }}
+    parents:
+      - router bgp {{ bgp_asn }}
+  when: bgp_med is defined
+
+- name: Display route policies configuration completion
+  debug:
+    msg:
+      - "BGP route policies configuration completed"
+      - "Communities configured: {{ (bgp_communities | default([])) | length }}"
+      - "Redistribution policies: {{ (bgp_redistribute | default([])) | length }}"

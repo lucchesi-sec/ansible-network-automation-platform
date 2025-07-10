@@ -1,0 +1,55 @@
+---
+# Service Hardening Tasks
+# Disables unnecessary services and hardens remaining ones
+
+- name: Disable unnecessary services
+  ios_config:
+    lines:
+      - no service pad
+      - no service finger
+      - no service udp-small-servers
+      - no service tcp-small-servers
+      - no service config
+      - no service dhcp
+      - no ip bootp server
+      - no ip http server
+      - no ip http secure-server
+      - no ip source-route
+      - no ip gratuitous-arps
+      - no ip redirects
+      - no ip proxy-arp
+      - no ip unreachables
+      - no ip mask-reply
+      - no ip directed-broadcast
+      - no lldp run
+      - no cdp run
+      
+- name: Enable secure services
+  ios_config:
+    lines:
+      - service timestamps debug datetime msec localtime show-timezone
+      - service timestamps log datetime msec localtime show-timezone
+      - service password-encryption
+      - service sequence-numbers
+      - service tcp-keepalives-in
+      - service tcp-keepalives-out
+      - no service dhcp
+      
+- name: Configure interface security
+  ios_config:
+    lines:
+      - no ip redirects
+      - no ip unreachables
+      - no ip proxy-arp
+      - no ip directed-broadcast
+    parents: interface {{ item }}
+  loop: "{{ secure_interfaces }}"
+  when: secure_interfaces is defined
+  
+- name: Configure global security settings
+  ios_config:
+    lines:
+      - ip tcp synwait-time {{ tcp_synwait_time }}
+      - ip tcp path-mtu-discovery
+      - ip cef
+  when: tcp_synwait_time is defined

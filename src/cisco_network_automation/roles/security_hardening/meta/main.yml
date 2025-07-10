@@ -1,0 +1,30 @@
+---
+# Meta information for Security Hardening Role
+galaxy_info:
+  role_name: security_hardening
+  author: Infrastructure Orchestrator
+  description: Enterprise network security hardening for Cisco devices
+  company: Enterprise Network
+  license: MIT
+  min_ansible_version: "2.12"
+  
+  platforms:
+    - name: IOS
+      versions:
+        - "15.x"
+        - "16.x"
+        - "17.x"
+  
+  galaxy_tags:
+    - cisco
+    - security
+    - hardening
+    - network
+    - enterprise
+    - compliance
+
+dependencies: []
+
+collections:
+  - cisco.ios
+  - ansible.netcommon

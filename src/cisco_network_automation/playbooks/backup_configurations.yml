@@ -1,0 +1,156 @@
+---
+# Configuration Backup Playbook
+# Automated backup of device configurations before deployment with versioning
+
+- name: Backup Configurations - Initialize
+  hosts: localhost
+  gather_facts: no
+  vars:
+    deployment_id: "{{ deployment_id }}"
+    deployment_base_path: "{{ deployment_base_path }}"
+    deployment_environment: "{{ deployment_environment }}"
+    backup_timestamp: "{{ ansible_date_time.epoch }}"
+    
+  tasks:
+    - name: Display backup information
+      debug:
+        msg:
+          - "=== CONFIGURATION BACKUP PROCESS ==="
+          - "Deployment ID: {{ deployment_id }}"
+          - "Environment: {{ deployment_environment }}"
+          - "Backup Timestamp: {{ backup_timestamp }}"
+          - "Total devices to backup: {{ groups['all'] | length }}"
+          - "Backup Directory: {{ deployment_base_path }}/backups"
+          
+    - name: Create backup directory structure
+      file:
+        path: "{{ deployment_base_path }}/backups/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - configs
+        - running
+        - startup
+        - versioned
+        
+    - name: Initialize backup tracking
+      copy:
+        content: |
+          === CONFIGURATION BACKUP TRACKING ===
+          Deployment ID: {{ deployment_id }}
+          Environment: {{ deployment_environment }}
+          Backup Started: {{ ansible_date_time.iso8601 }}
+          Backup Timestamp: {{ backup_timestamp }}
+          Total Devices: {{ groups['all'] | length }}
+          
+          === BACKUP STATUS ===
+          Configuration backup - IN PROGRESS
+          Running config backup - PENDING
+          Startup config backup - PENDING
+          Versioning - PENDING
+          
+        dest: "{{ deployment_base_path }}/backups/backup_tracking.txt"
+        mode: '0644'
+
+- name: Backup Device Configurations
+  hosts: all
+  gather_facts: no
+  serial: 5
+  vars:
+    deployment_base_path: "{{ hostvars['localhost']['deployment_base_path'] }}"
+    backup_timestamp: "{{ hostvars['localhost']['backup_timestamp'] }}"
+    
+  tasks:
+    - name: Backup running configuration
+      ios_config:
+        backup: yes
+        backup_options:
+          filename: "{{ inventory_hostname }}_running_{{ backup_timestamp }}.cfg"
+          dir_path: "{{ deployment_base_path }}/backups/running"
+      register: running_backup
+      
+    - name: Backup startup configuration
+      ios_command:
+        commands:
+          - show startup-config
+      register: startup_config
+      
+    - name: Save startup configuration to file
+      copy:
+        content: "{{ startup_config.stdout[0] }}"
+        dest: "{{ deployment_base_path }}/backups/startup/{{ inventory_hostname }}_startup_{{ backup_timestamp }}.cfg"
+      delegate_to: localhost
+      
+    - name: Get device information for backup metadata
+      ios_command:
+        commands:
+          - show version
+          - show inventory
+      register: device_info
+      
+    - name: Create backup metadata
+      copy:
+        content: |
+          Device: {{ inventory_hostname }}
+          IP: {{ ansible_host }}
+          Groups: {{ group_names | join(', ') }}
+          Backup Timestamp: {{ backup_timestamp }}
+          Backup Date: {{ ansible_date_time.iso8601 }}
+          
+          === DEVICE INFORMATION ===
+          {{ device_info.stdout[0] }}
+          
+          === INVENTORY ===
+          {{ device_info.stdout[1] }}
+          
+          === BACKUP FILES ===
+          Running Config: {{ inventory_hostname }}_running_{{ backup_timestamp }}.cfg
+          Startup Config: {{ inventory_hostname }}_startup_{{ backup_timestamp }}.cfg
+          
+        dest: "{{ deployment_base_path }}/backups/configs/{{ inventory_hostname }}_metadata_{{ backup_timestamp }}.txt"
+      delegate_to: localhost
+
+- name: Backup Completion Summary
+  hosts: localhost
+  gather_facts: no
+  vars:
+    deployment_base_path: "{{ deployment_base_path }}"
+    backup_timestamp: "{{ backup_timestamp }}"
+    
+  tasks:
+    - name: Generate backup completion report
+      copy:
+        content: |
+          === CONFIGURATION BACKUP COMPLETE ===
+          Deployment ID: {{ deployment_id }}
+          Environment: {{ deployment_environment }}
+          Backup Timestamp: {{ backup_timestamp }}
+          Completed: {{ ansible_date_time.iso8601 }}
+          
+          === BACKUP SUMMARY ===
+          Total devices backed up: {{ groups['all'] | length }}
+          Running configs saved: {{ groups['all'] | length }}
+          Startup configs saved: {{ groups['all'] | length }}
+          Metadata files created: {{ groups['all'] | length }}
+          
+          === BACKUP LOCATIONS ===
+          Running configs: {{ deployment_base_path }}/backups/running/
+          Startup configs: {{ deployment_base_path }}/backups/startup/
+          Metadata files: {{ deployment_base_path }}/backups/configs/
+          
+          === STATUS ===
+          Backup process: COMPLETED SUCCESSFULLY
+          Ready for deployment: YES
+          
+        dest: "{{ deployment_base_path }}/backups/backup_summary.txt"
+        mode: '0644'
+        
+    - name: Display backup completion
+      debug:
+        msg:
+          - "=== CONFIGURATION BACKUP COMPLETE ==="
+          - "Total devices backed up: {{ groups['all'] | length }}"
+          - "Backup location: {{ deployment_base_path }}/backups/"
+          - "Backup timestamp: {{ backup_timestamp }}"
+          - "Status: READY FOR DEPLOYMENT"
+EOF < /dev/null

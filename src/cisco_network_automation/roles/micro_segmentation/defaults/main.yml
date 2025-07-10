@@ -1,0 +1,62 @@
+---
+# Micro-Segmentation Role Defaults
+# Default variables for micro-segmentation deployment
+
+# General micro-segmentation settings
+microsegmentation_enabled: true
+tenant_isolation_enabled: true
+security_group_tagging_enabled: true
+
+# VRF isolation settings
+default_vrf: default
+tenant_vrf_prefix: "TENANT_"
+vrf_rd_base: "65000:100"
+vrf_rt_base: "65000:100"
+
+# Security policy settings
+security_policies_enabled: true
+default_security_policy: deny_all
+inter_tenant_communication: false
+intra_tenant_communication: true
+
+# Access control settings
+acl_logging_enabled: true
+acl_established_sessions: true
+acl_deny_logging: true
+
+# Security group tag settings
+sgt_range_start: 100
+sgt_range_end: 999
+default_unknown_sgt: 0
+
+# Trust enforcement settings
+cts_enabled: true
+cts_device_id: auto
+cts_password: "{{ vault_cts_password | default('changeme') }}"
+
+# Monitoring settings
+traffic_monitoring_enabled: true
+netflow_enabled: true
+syslog_security_events: true
+
+# Service insertion settings
+service_insertion_enabled: false
+firewall_service_node: "10.0.0.100"
+ips_service_node: "10.0.0.101"
+
+# Tenant configuration
+max_tenants: 50
+tenant_vlan_range_start: 100
+tenant_vlan_range_end: 999
+
+# Documentation settings
+generate_documentation: true
+documentation_path: "{{ playbook_dir }}/../docs/"
+
+# Validation settings
+validate_deployment: true
+validation_timeout: 300
+
+# Backup settings
+backup_enabled: true
+backup_path: "{{ playbook_dir }}/../backups/"

@@ -1,0 +1,38 @@
+---
+# BGP Route Reflector Configuration Tasks
+# Configures route reflector specific settings
+
+- name: Configure route reflector cluster ID
+  ios_config:
+    lines:
+      - bgp cluster-id {{ route_reflector_cluster_id }}
+    parents:
+      - router bgp {{ bgp_asn }}
+  when: route_reflector_cluster_id is defined
+
+- name: Configure route reflector clients
+  ios_config:
+    lines:
+      - neighbor {{ item.neighbor_ip }} route-reflector-client
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: 
+    - item.neighbor_ip is defined
+    - item.route_reflector_client | default(false)
+    - item.remote_as | default(bgp_asn) | string == bgp_asn | string
+
+- name: Configure originator ID checking
+  ios_config:
+    lines:
+      - no bgp client-to-client reflection
+    parents:
+      - router bgp {{ bgp_asn }}
+  when: disable_client_to_client_reflection | default(false)
+
+- name: Display route reflector configuration completion
+  debug:
+    msg:
+      - "Route reflector configuration completed for {{ inventory_hostname }}"
+      - "Cluster ID: {{ route_reflector_cluster_id }}"
+      - "Route reflector clients: {{ (bgp_neighbors | default([]) | selectattr('route_reflector_client', 'defined') | selectattr('route_reflector_client') | list) | length }}"

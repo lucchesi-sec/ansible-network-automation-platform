@@ -1,0 +1,75 @@
+---
+# Identity-Based Networking Implementation
+# Configures identity source integration and identity-based access control
+
+- name: Configure identity source integration
+  cisco.ios.ios_config:
+    lines:
+      - identity source {{ item.type }}
+      - server primary {{ item.server }}
+      - server secondary {{ item.backup_server | default('') }}
+      - domain {{ item.domain | default('') }}
+      - port {{ item.port | default('') }}
+      - timeout {{ identity_timeout | default(1800) }}
+    parents: configure terminal
+  loop: "{{ identity_sources }}"
+  when: identity_sources is defined
+
+- name: Enable identity-based access control
+  cisco.ios.ios_config:
+    lines:
+      - identity policy enable
+      - identity authentication required
+      - identity authorization required
+      - identity accounting enabled
+    parents: configure terminal
+
+- name: Configure identity access policies
+  cisco.ios.ios_config:
+    lines:
+      - identity policy {{ item.name }}
+      - user-group {{ item.user_group }}
+      - device-group {{ item.device_group }}
+      - access-level {{ item.access_level }}
+      - time-restriction {{ item.time_restriction | default('none') }}
+      - location-restriction {{ item.location_restriction | default('none') }}
+    parents: configure terminal
+  loop: "{{ identity_policies | default([]) }}"
+
+- name: Configure device authentication
+  cisco.ios.ios_config:
+    lines:
+      - identity device-auth enable
+      - identity device-auth certificate required
+      - identity device-auth posture-check enabled
+      - identity device-auth compliance-check enabled
+    parents: configure terminal
+
+- name: Configure user authentication
+  cisco.ios.ios_config:
+    lines:
+      - identity user-auth enable
+      - identity user-auth multi-factor required
+      - identity user-auth certificate preferred
+      - identity user-auth session-timeout {{ identity_timeout | default(1800) }}
+    parents: configure terminal
+
+- name: Enable identity logging
+  cisco.ios.ios_config:
+    lines:
+      - identity logging enable
+      - identity logging level informational
+      - identity logging events authentication authorization
+    parents: configure terminal
+
+- name: Verify identity configuration
+  cisco.ios.ios_command:
+    commands:
+      - show identity source status
+      - show identity policy summary
+      - show identity authentication status
+  register: identity_status
+
+- name: Display identity status
+  debug:
+    var: identity_status.stdout_lines

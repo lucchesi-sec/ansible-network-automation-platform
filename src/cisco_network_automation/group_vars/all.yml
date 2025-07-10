@@ -1,0 +1,114 @@
+---
+# Global Zero Trust Network Architecture Configuration
+
+# Deployment Control Settings
+deploy_advanced_features: true  # Set to false for lean deployments without AI/Zero Trust Phase 4 roles
+deployment_complexity_level: full  # Options: minimal, standard, full
+
+# DNS Configuration
+dns_servers:
+  - 8.8.8.8
+  - 8.8.4.4
+
+# NTP Configuration
+ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+  - 2.pool.ntp.org
+
+# Logging Configuration
+logging_server: 10.0.0.100
+logging_level: informational
+logging_facility: local6
+
+# SNMP Configuration
+snmp_community: "{{ vault_snmp_community }}"
+snmp_location: "Zero Trust Network Infrastructure"
+snmp_contact: "netops@enterprise.local"
+
+# Zero Trust Core Settings
+zero_trust_policy_enforcement: strict
+default_trust_level: never
+verification_interval: 300
+identity_timeout: 1800
+micro_segmentation_default: deny_all
+software_defined_perimeter_mode: dynamic
+
+# Identity Integration
+identity_sources:
+  - type: active_directory
+    server: dc01.enterprise.local
+    backup_server: dc02.enterprise.local
+    domain: enterprise.local
+  - type: radius
+    server: radius01.enterprise.local
+    backup_server: radius02.enterprise.local
+    port: 1812
+
+# Certificate Management
+pki_root_ca: "{{ vault_pki_root_ca }}"
+device_certificate_template: ZeroTrustDevice
+user_certificate_template: ZeroTrustUser
+certificate_renewal_threshold: 30
+
+# Continuous Verification
+verification_methods:
+  - device_posture
+  - user_behavior
+  - traffic_analysis
+  - risk_scoring
+
+# Micro-segmentation Policies
+default_microsegmentation_rules:
+  - src_zone: user_devices
+    dst_zone: corporate_resources
+    action: verify_then_allow
+  - src_zone: guest_devices
+    dst_zone: corporate_resources
+    action: deny
+  - src_zone: iot_devices
+    dst_zone: user_devices
+    action: deny
+
+# Software Defined Perimeter
+sdp_controller_cluster:
+  - 10.0.1.10
+  - 10.0.1.11
+sdp_gateway_ports:
+  - 443
+  - 8443
+sdp_encryption: aes256
+
+# AI Automation Framework
+ai_automation_enabled: true
+automation_controller_cluster:
+  - 10.0.2.10
+  - 10.0.2.11
+predictive_analytics_enabled: true
+self_healing_networks_enabled: true
+event_driven_automation_enabled: true
+
+# AI Optimization Settings
+ai_optimization_mode: adaptive
+machine_learning_models:
+  - traffic_prediction
+  - anomaly_detection
+  - performance_optimization
+  - security_threat_detection
+
+# Event Processing
+event_processing_interval: 60
+automation_response_timeout: 300
+healing_action_threshold: 5
+
+# Performance Monitoring
+performance_monitoring_interval: 300
+bandwidth_utilization_threshold: 80
+cpu_utilization_threshold: 75
+memory_utilization_threshold: 80
+
+# Security Compliance
+security_compliance_framework: iso27001
+audit_logging_enabled: true
+threat_intelligence_integration: true
+vulnerability_scanning_interval: 86400

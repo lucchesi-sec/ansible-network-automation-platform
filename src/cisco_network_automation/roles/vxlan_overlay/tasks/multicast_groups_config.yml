@@ -1,0 +1,51 @@
+---
+# VXLAN Multicast Groups Configuration Tasks
+# Configures multicast groups for VXLAN overlay
+
+- name: Configure VXLAN multicast group assignments
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ nve_interface }}
+      - member vni {{ item.vni }}
+      - mcast-group {{ item.multicast_group }}
+    parents: interface {{ nve_interface }}
+    match: line
+  loop: "{{ vxlan_multicast_groups }}"
+  when: multicast_enabled | bool and vxlan_multicast_groups is defined
+
+- name: Configure multicast group ranges
+  cisco.ios.ios_config:
+    lines:
+      - ip multicast-routing
+      - ip pim sparse-mode
+      - ip pim rp-address {{ multicast_rp_address }} {{ item.group_range }}
+    match: line
+  loop: "{{ multicast_group_ranges }}"
+  when: multicast_group_ranges is defined
+
+- name: Configure anycast RP for multicast
+  cisco.ios.ios_config:
+    lines:
+      - ip pim anycast-rp {{ item.anycast_rp_address }} {{ item.rp_address }}
+    match: line
+  loop: "{{ anycast_rp_mappings }}"
+  when: anycast_rp_mappings is defined
+
+- name: Configure multicast source discovery
+  cisco.ios.ios_config:
+    lines:
+      - ip pim autorp listener
+      - ip pim send-rp-announce loopback{{ vxlan_loopback_id }} scope {{ item.scope }}
+    match: line
+  loop: "{{ multicast_discovery_scopes }}"
+  when: multicast_discovery_scopes is defined
+
+- name: Configure IGMP snooping for VXLAN VLANs
+  cisco.ios.ios_config:
+    lines:
+      - ip igmp snooping
+      - ip igmp snooping vlan {{ item.vlan_id }}
+      - ip igmp snooping vlan {{ item.vlan_id }} querier {{ item.querier_address }}
+    match: line
+  loop: "{{ vxlan_igmp_snooping }}"
+  when: vxlan_igmp_snooping is defined

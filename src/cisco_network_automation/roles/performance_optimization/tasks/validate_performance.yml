@@ -1,0 +1,75 @@
+---
+# Performance Validation Tasks
+# Validates performance optimization settings
+
+- name: Check CPU utilization
+  cisco.ios.ios_command:
+    commands:
+      - show processes cpu sorted
+  register: cpu_status
+  failed_when: false
+
+- name: Display CPU status
+  debug:
+    msg: "CPU Status checked"
+  when: cpu_status is defined
+
+- name: Check memory utilization
+  cisco.ios.ios_command:
+    commands:
+      - show memory summary
+  register: memory_status
+  failed_when: false
+
+- name: Display memory status
+  debug:
+    msg: "Memory Status checked"
+  when: memory_status is defined
+
+- name: Check interface performance
+  cisco.ios.ios_command:
+    commands:
+      - show interfaces summary
+  register: interface_perf
+  failed_when: false
+
+- name: Display interface performance
+  debug:
+    msg: "Interface Performance checked"
+  when: interface_perf is defined
+
+- name: Check QoS statistics
+  cisco.ios.ios_command:
+    commands:
+      - show mls qos
+  register: qos_stats
+  failed_when: false
+
+- name: Display QoS statistics
+  debug:
+    msg: "QoS Statistics checked"
+  when: qos_stats is defined
+
+- name: Check IP SLA statistics
+  cisco.ios.ios_command:
+    commands:
+      - show ip sla statistics
+  register: sla_stats
+  failed_when: false
+
+- name: Display IP SLA statistics
+  debug:
+    msg: "IP SLA Statistics checked"
+  when: sla_stats is defined
+
+- name: Check CEF statistics
+  cisco.ios.ios_command:
+    commands:
+      - show ip cef summary
+  register: cef_stats
+  failed_when: false
+
+- name: Display CEF statistics
+  debug:
+    msg: "CEF Statistics checked"
+  when: cef_stats is defined

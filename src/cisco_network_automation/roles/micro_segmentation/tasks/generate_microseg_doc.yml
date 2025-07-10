@@ -1,0 +1,42 @@
+---
+# Generate Micro-Segmentation Documentation Tasks
+# Creates documentation for micro-segmentation configuration
+
+- name: Create micro-segmentation documentation directory
+  file:
+    path: "{{ documentation_path }}/micro_segmentation"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate tenant isolation documentation
+  template:
+    src: tenant_isolation.md.j2
+    dest: "{{ documentation_path }}/micro_segmentation/tenant_isolation.md"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate security policies documentation
+  template:
+    src: security_policies.md.j2
+    dest: "{{ documentation_path }}/micro_segmentation/{{ inventory_hostname }}_security_policies.md"
+    mode: '0644'
+  delegate_to: localhost
+
+- name: Generate VRF configuration documentation
+  template:
+    src: vrf_config.md.j2
+    dest: "{{ documentation_path }}/micro_segmentation/vrf_configuration.md"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate tenant access matrix
+  template:
+    src: tenant_access_matrix.md.j2
+    dest: "{{ documentation_path }}/micro_segmentation/tenant_access_matrix.md"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true

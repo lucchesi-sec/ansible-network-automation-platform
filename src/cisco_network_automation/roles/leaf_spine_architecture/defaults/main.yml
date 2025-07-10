@@ -1,0 +1,46 @@
+---
+# Leaf-Spine Architecture Role Defaults
+# Default variables for leaf-spine fabric deployment
+
+# General fabric settings
+fabric_architecture: leaf_spine
+datacenter_domain: dc.example.com
+dns_servers:
+  - 8.8.8.8
+  - 8.8.4.4
+
+# OSPF defaults
+ospf_area: 0.0.0.0
+ospf_process_id: 1
+ospf_hello_interval: 1
+ospf_dead_interval: 3
+ospf_network_type: point-to-point
+
+# BGP defaults
+bgp_as: 65000
+bgp_evpn_enabled: true
+bgp_router_id: "{{ ansible_host }}"
+
+# Interface defaults
+mgmt_interface: GigabitEthernet0/0/0
+mgmt_subnet_mask: 255.255.255.0
+
+# Loopback defaults
+router_id_loopback: 0
+vxlan_loopback_id: 100
+
+# Multicast defaults
+multicast_enabled: true
+multicast_rp_enabled: false
+
+# Documentation settings
+generate_documentation: true
+documentation_path: "{{ playbook_dir }}/../docs/"
+
+# Validation settings
+validate_deployment: true
+validation_timeout: 300
+
+# Backup settings
+backup_enabled: true
+backup_path: "{{ playbook_dir }}/../backups/"

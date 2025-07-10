@@ -1,0 +1,48 @@
+---
+# Management Configuration Tasks
+# Configures SNMP, SSH, and remote management for router
+
+- name: Configure SNMP community strings
+  ios_config:
+    lines:
+      - snmp-server community {{ item.community }} {{ item.permission }}
+    no_log: true
+  loop: "{{ snmp_communities }}"
+  when: snmp_communities is defined
+  
+- name: Configure SNMP location and contact
+  ios_config:
+    lines:
+      - snmp-server location {{ snmp_location }}
+      - snmp-server contact {{ snmp_contact }}
+  when: snmp_location is defined and snmp_contact is defined
+  
+- name: Configure SSH settings
+  ios_config:
+    lines:
+      - ip ssh version 2
+      - ip ssh time-out {{ ssh_timeout }}
+      - ip ssh authentication-retries 3
+      
+- name: Configure VTY lines
+  ios_config:
+    lines:
+      - transport input ssh
+      - exec-timeout {{ vty_timeout }}
+      - session-timeout {{ vty_session_timeout }}
+      - access-class {{ vty_access_class }} in
+    parents: line vty 0 4
+  when: vty_access_class is defined
+  
+- name: Configure console line
+  ios_config:
+    lines:
+      - exec-timeout {{ console_timeout }}
+      - logging synchronous
+    parents: line console 0
+    
+- name: Configure banner
+  ios_config:
+    lines:
+      - banner motd ^{{ banner_message }}^
+  when: banner_message is defined

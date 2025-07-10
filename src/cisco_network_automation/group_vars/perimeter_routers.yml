@@ -1,0 +1,79 @@
+---
+# Software Defined Perimeter Router Configuration
+
+# SDP Gateway Configuration
+sdp_gateway_enabled: true
+sdp_gateway_mode: active_standby
+sdp_controller_address: 10.0.1.10
+sdp_controller_backup: 10.0.1.11
+sdp_gateway_port: 8443
+sdp_encryption_protocol: dtls
+
+# Zero Trust Network Access
+ztna_enabled: true
+ztna_policy_engine: centralized
+ztna_default_deny: true
+ztna_session_timeout: 3600
+ztna_continuous_verification: true
+
+# Dynamic Perimeter
+dynamic_perimeter_enabled: true
+perimeter_adjustment_interval: 300
+perimeter_threat_response: automatic
+perimeter_scaling: elastic
+
+# Encrypted Tunnels
+tunnel_encryption: aes256gcm
+tunnel_authentication: certificate
+tunnel_key_rotation: automatic
+tunnel_key_rotation_interval: 3600
+
+# Application-Specific Perimeters
+app_specific_perimeters:
+  - name: web_applications
+    protocols: ["https", "http"]
+    security_level: medium
+    inspection_depth: application
+  - name: database_access
+    protocols: ["mysql", "postgresql", "mssql"]
+    security_level: high
+    inspection_depth: deep
+  - name: file_sharing
+    protocols: ["smb", "nfs", "ftp"]
+    security_level: high
+    inspection_depth: content
+
+# Threat Intelligence Integration
+threat_intelligence_enabled: true
+threat_feeds:
+  - provider: cisco_talos
+    feed_type: ip_reputation
+    update_interval: 300
+  - provider: commercial_feed
+    feed_type: domain_reputation
+    update_interval: 600
+
+# Geo-blocking
+geo_blocking_enabled: true
+blocked_countries:
+  - CN
+  - RU
+  - KP
+allowed_countries:
+  - US
+  - CA
+  - GB
+  - DE
+  - FR
+
+# DDoS Protection
+ddos_protection_enabled: true
+ddos_threshold_pps: 10000
+ddos_threshold_bps: 100000000
+ddos_mitigation_automatic: true
+
+# Connection Brokering
+connection_brokering_enabled: true
+broker_policy_enforcement: strict
+broker_session_management: centralized
+broker_load_balancing: weighted_round_robin

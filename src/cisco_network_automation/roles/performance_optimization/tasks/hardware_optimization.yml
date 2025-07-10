@@ -1,0 +1,60 @@
+---
+# Hardware Optimization Tasks
+# Configures hardware optimization settings
+
+- name: Enable hardware switching
+  cisco.ios.ios_config:
+    lines:
+      - no ip route-cache
+      - ip route-cache
+    match: line
+  when: hardware_optimization.hardware_switching | bool
+
+- name: Enable IP route cache
+  cisco.ios.ios_config:
+    lines:
+      - ip route-cache
+    match: line
+  when: hardware_optimization.ip_route_cache | bool
+
+- name: Enable IP flow cache
+  cisco.ios.ios_config:
+    lines:
+      - ip flow-cache entries 65536
+      - ip flow-cache timeout active 1
+      - ip flow-cache timeout inactive 15
+    match: line
+  when: hardware_optimization.ip_flow_cache | bool
+
+- name: Enable CEF (Cisco Express Forwarding)
+  cisco.ios.ios_config:
+    lines:
+      - ip cef
+      - ipv6 cef
+    match: line
+  when: hardware_optimization.cef_enabled | bool
+
+- name: Configure CEF load sharing
+  cisco.ios.ios_config:
+    lines:
+      - ip cef load-sharing algorithm tunnel
+    match: line
+  when: hardware_optimization.cef_load_sharing | bool
+
+- name: Enable turbo flood
+  cisco.ios.ios_config:
+    lines:
+      - ip multicast-routing
+      - ip pim turbo-flood
+    match: line
+  when: hardware_optimization.turbo_flood | bool
+
+- name: Configure hardware acceleration
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - ip route-cache cef
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ hardware_accelerated_interfaces }}"
+  when: hardware_accelerated_interfaces is defined

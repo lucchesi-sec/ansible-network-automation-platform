@@ -1,0 +1,62 @@
+---
+# BGP EVPN Configuration Tasks
+# Configures BGP EVPN for VXLAN control plane
+
+- name: Configure BGP EVPN address family
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - address-family l2vpn evpn
+      - advertise-all-vni
+      - exit-address-family
+    match: line
+  when: bgp_evpn_enabled | bool
+
+- name: Configure BGP EVPN neighbors
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - neighbor {{ item.neighbor }} remote-as {{ item.remote_as }}
+      - address-family l2vpn evpn
+      - neighbor {{ item.neighbor }} activate
+      - neighbor {{ item.neighbor }} send-community extended
+      - exit-address-family
+    match: line
+  loop: "{{ bgp_evpn_neighbors }}"
+  when: bgp_evpn_neighbors is defined
+
+- name: Configure BGP EVPN route distinguisher
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - vrf {{ item.vrf_name }}
+      - rd {{ item.rd }}
+      - address-family ipv4 unicast
+      - advertise l2vpn evpn
+      - exit-address-family
+    match: line
+  loop: "{{ bgp_evpn_vrfs }}"
+  when: bgp_evpn_vrfs is defined
+
+- name: Configure BGP EVPN route targets
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - vrf {{ item.vrf_name }}
+      - address-family ipv4 unicast
+      - route-target import {{ item.rt_import }}
+      - route-target export {{ item.rt_export }}
+      - exit-address-family
+    match: line
+  loop: "{{ bgp_evpn_route_targets }}"
+  when: bgp_evpn_route_targets is defined
+
+- name: Configure BGP EVPN default gateway advertisement
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - address-family l2vpn evpn
+      - advertise-default-gw
+      - exit-address-family
+    match: line
+  when: bgp_evpn_advertise_default_gw | bool

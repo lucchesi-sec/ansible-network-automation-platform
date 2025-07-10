@@ -1,0 +1,49 @@
+---
+# AI Network Intelligence - Role Metadata
+# Consolidated role combining AI optimization and automation controller
+
+galaxy_info:
+  author: Network Operations Team
+  description: AI-driven network intelligence and automation controller
+  company: Enterprise Network Solutions
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: IOS
+      versions:
+        - all
+  galaxy_tags:
+    - networking
+    - cisco
+    - automation
+    - ai
+    - optimization
+
+dependencies:
+  - role: cisco_router
+    when: "'routers' in group_names"
+  - role: bgp_configuration  
+    when: "'core_routers' in group_names or 'edge_routers' in group_names"
+  - role: security_hardening
+    when: security_hardening_enabled | default(true)
+
+# Role consolidation metadata
+consolidates:
+  - cisco_ai_optimization
+  - cisco_automation_controller
+  
+migration_notes: |
+  This role replaces cisco_ai_optimization and cisco_automation_controller.
+  All functionality has been preserved and enhanced with better integration.
+  
+  Migrated features:
+  - AI optimization engine (bandwidth, latency, performance, QoS, security)
+  - Automation controller (policies, scripts, API, telemetry)
+  - Integrated monitoring and logging
+  - Enhanced validation and error handling
+  
+  New features:
+  - Unified configuration management
+  - Improved error handling with failed_when
+  - Tag-based task organization
+  - Enhanced validation with assertions

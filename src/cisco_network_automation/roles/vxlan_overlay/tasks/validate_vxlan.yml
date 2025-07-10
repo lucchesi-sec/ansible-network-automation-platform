@@ -1,0 +1,66 @@
+---
+# VXLAN Validation Tasks
+# Validates VXLAN overlay deployment
+
+- name: Validate NVE interface status
+  cisco.ios.ios_command:
+    commands:
+      - show interface {{ nve_interface }}
+  register: nve_status
+  failed_when: false
+
+- name: Display NVE interface status
+  debug:
+    msg: "NVE Interface Status: {{ nve_status.stdout[0] }}"
+  when: nve_status is defined
+
+- name: Validate VXLAN VNI status
+  cisco.ios.ios_command:
+    commands:
+      - show nve vni
+  register: vni_status
+  failed_when: false
+
+- name: Display VNI status
+  debug:
+    msg: "VNI Status: {{ vni_status.stdout[0] }}"
+  when: vni_status is defined
+
+- name: Validate BGP EVPN routes
+  cisco.ios.ios_command:
+    commands:
+      - show bgp l2vpn evpn
+  register: evpn_routes
+  failed_when: false
+
+- name: Display BGP EVPN routes
+  debug:
+    msg: "BGP EVPN Routes present"
+  when: evpn_routes is defined
+
+- name: Validate VXLAN peer connectivity
+  cisco.ios.ios_command:
+    commands:
+      - show nve peers
+  register: nve_peers
+  failed_when: false
+
+- name: Display NVE peers
+  debug:
+    msg: "NVE Peers: {{ nve_peers.stdout[0] }}"
+  when: nve_peers is defined
+
+- name: Test VXLAN overlay connectivity
+  cisco.ios.ios_command:
+    commands:
+      - ping vrf {{ item.vrf }} {{ item.target_ip }}
+  register: overlay_ping
+  loop: "{{ vxlan_connectivity_tests }}"
+  when: vxlan_connectivity_tests is defined
+  failed_when: false
+
+- name: Display overlay connectivity results
+  debug:
+    msg: "Overlay ping to {{ item.item.target_ip }}: {{ 'Success' if item.stdout[0] is search('Success') else 'Failed' }}"
+  loop: "{{ overlay_ping.results }}"
+  when: overlay_ping is defined

@@ -1,0 +1,51 @@
+---
+# SSH Security Hardening Tasks
+# Secures SSH configuration and access
+
+- name: Generate RSA key pair
+  ios_config:
+    lines:
+      - crypto key generate rsa general-keys modulus {{ rsa_key_size }}
+  when: rsa_key_size is defined
+  
+- name: Configure SSH version 2 only
+  ios_config:
+    lines:
+      - ip ssh version 2
+      
+- name: Configure SSH security settings
+  ios_config:
+    lines:
+      - ip ssh time-out {{ ssh_timeout }}
+      - ip ssh authentication-retries {{ ssh_auth_retries }}
+      - ip ssh logging events
+      
+- name: Configure SSH source interface
+  ios_config:
+    lines:
+      - ip ssh source-interface {{ ssh_source_interface }}
+  when: ssh_source_interface is defined
+  
+- name: Configure SSH access class
+  ios_config:
+    lines:
+      - ip ssh access-class {{ ssh_access_class }}
+  when: ssh_access_class is defined
+  
+- name: Configure VTY SSH settings
+  ios_config:
+    lines:
+      - transport input ssh
+      - transport output ssh
+      - exec-timeout {{ vty_timeout }}
+      - session-timeout {{ vty_session_timeout }}
+      - absolute-timeout {{ vty_absolute_timeout }}
+    parents: line vty 0 15
+    
+- name: Disable auxiliary port
+  ios_config:
+    lines:
+      - transport input none
+      - transport output none
+      - no exec
+    parents: line aux 0

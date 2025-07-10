@@ -1,0 +1,50 @@
+---
+# BGP Configuration Handlers
+# Event-driven tasks for BGP configuration changes
+
+- name: save bgp config
+  ios_config:
+    save_when: modified
+  listen: "save bgp config"
+
+- name: clear bgp sessions
+  ios_command:
+    commands:
+      - clear ip bgp *
+  listen: "clear bgp sessions"
+
+- name: soft reset bgp
+  ios_command:
+    commands:
+      - clear ip bgp * soft
+  listen: "soft reset bgp"
+
+- name: backup bgp config
+  ios_config:
+    backup: yes
+    backup_options:
+      filename: "{{ inventory_hostname }}_bgp_{{ ansible_date_time.epoch }}.cfg"
+      dir_path: "{{ playbook_dir }}/backups/"
+  delegate_to: localhost
+  listen: "backup bgp config"
+
+- name: verify bgp neighbors
+  ios_command:
+    commands:
+      - show ip bgp summary
+      - show ip bgp neighbors
+  register: bgp_neighbor_status
+  listen: "verify bgp neighbors"
+
+- name: wait for bgp convergence
+  pause:
+    seconds: 60
+  listen: "wait bgp convergence"
+
+- name: check bgp routes
+  ios_command:
+    commands:
+      - show ip bgp
+      - show ip route bgp
+  register: bgp_routing_table
+  listen: "check bgp routes"

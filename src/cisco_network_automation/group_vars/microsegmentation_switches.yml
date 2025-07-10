@@ -1,0 +1,71 @@
+---
+# Micro-segmentation Switch Configuration
+
+# Micro-segmentation Engine
+microsegmentation_enabled: true
+microsegmentation_mode: dynamic
+microsegmentation_enforcement: strict
+microsegmentation_logging: comprehensive
+
+# Security Zones
+security_zones:
+  - name: dmz
+    id: 10
+    security_level: 50
+    default_action: inspect
+  - name: internal
+    id: 20
+    security_level: 80
+    default_action: allow
+  - name: restricted
+    id: 30
+    security_level: 100
+    default_action: deny
+  - name: iot
+    id: 40
+    security_level: 30
+    default_action: isolate
+
+# Dynamic Security Groups
+dynamic_security_groups:
+  - name: corporate_users
+    criteria: user_group:employees
+    permissions: full_access
+  - name: guest_users
+    criteria: user_group:guests
+    permissions: internet_only
+  - name: trusted_devices
+    criteria: device_compliance:high
+    permissions: extended_access
+  - name: managed_devices
+    criteria: device_management:corporate
+    permissions: managed_access
+
+# Traffic Inspection
+traffic_inspection_enabled: true
+deep_packet_inspection: true
+application_visibility: true
+threat_detection: true
+malware_scanning: true
+
+# Isolation Policies
+isolation_policies:
+  - name: lateral_movement_prevention
+    action: block
+    src_criteria: any
+    dst_criteria: different_security_zone
+  - name: untrusted_device_isolation
+    action: quarantine
+    src_criteria: device_trust:low
+    dst_criteria: any
+  - name: infected_device_isolation
+    action: isolate
+    src_criteria: threat_detected:true
+    dst_criteria: any
+
+# Adaptive Security
+adaptive_security_enabled: true
+behavior_analysis: true
+anomaly_detection: true
+risk_based_enforcement: true
+learning_period: 7

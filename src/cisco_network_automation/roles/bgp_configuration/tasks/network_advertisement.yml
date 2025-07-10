@@ -1,0 +1,33 @@
+---
+# BGP Network Advertisement Tasks
+# Configures network advertisements into BGP
+
+- name: Configure BGP network advertisements
+  ios_config:
+    lines:
+      - network {{ item.network }} mask {{ item.netmask }}
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_networks }}"
+  when: 
+    - item.network is defined
+    - item.netmask is defined
+
+- name: Configure BGP network advertisements with route maps
+  ios_config:
+    lines:
+      - network {{ item.network }} mask {{ item.netmask }} route-map {{ item.route_map }}
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_networks }}"
+  when: 
+    - item.network is defined
+    - item.netmask is defined
+    - item.route_map is defined
+
+- name: Display network advertisement configuration completion
+  debug:
+    msg:
+      - "BGP network advertisements configured"
+      - "Total networks advertised: {{ bgp_networks | length }}"
+      - "Networks: {{ bgp_networks | map(attribute='network') | list }}"

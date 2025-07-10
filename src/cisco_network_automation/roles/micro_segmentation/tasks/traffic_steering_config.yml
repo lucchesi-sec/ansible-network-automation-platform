@@ -1,0 +1,57 @@
+---
+# Traffic Steering Configuration Tasks
+# Configures traffic steering for tenant isolation
+
+- name: Configure policy-based routing for tenant traffic
+  cisco.ios.ios_config:
+    lines:
+      - route-map {{ item.route_map_name }} permit {{ item.sequence }}
+      - match ip address {{ item.acl_name }}
+      - set ip next-hop {{ item.next_hop }}
+    match: line
+  loop: "{{ tenant_traffic_steering }}"
+  when: tenant_traffic_steering is defined
+
+- name: Apply traffic steering to tenant interfaces
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - ip policy route-map {{ item.route_map_name }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ interface_traffic_steering }}"
+  when: interface_traffic_steering is defined
+
+- name: Configure service insertion for tenant traffic
+  cisco.ios.ios_config:
+    lines:
+      - service-insertion {{ item.service_name }}
+      - append-service-node {{ item.service_node }}
+      - cluster-ip {{ item.cluster_ip }}
+      - service-path {{ item.service_path_id }}
+    match: line
+  loop: "{{ service_insertion_policies }}"
+  when: service_insertion_policies is defined
+
+- name: Configure tenant load balancing
+  cisco.ios.ios_config:
+    lines:
+      - route-map {{ item.route_map_name }} permit {{ item.sequence }}
+      - match ip address {{ item.acl_name }}
+      - set ip next-hop {{ item.primary_next_hop }} {{ item.secondary_next_hop }}
+    match: line
+  loop: "{{ tenant_load_balancing }}"
+  when: tenant_load_balancing is defined
+
+- name: Configure tenant QoS policies
+  cisco.ios.ios_config:
+    lines:
+      - class-map match-any {{ item.class_name }}
+      - match access-group name {{ item.acl_name }}
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - bandwidth {{ item.bandwidth }}
+      - priority
+    match: line
+  loop: "{{ tenant_qos_policies }}"
+  when: tenant_qos_policies is defined

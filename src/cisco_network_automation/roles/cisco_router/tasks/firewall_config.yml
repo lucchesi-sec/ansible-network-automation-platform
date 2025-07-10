@@ -1,0 +1,46 @@
+---
+# Firewall Configuration Tasks
+# Configures access control lists and basic firewall rules
+
+- name: Configure extended access lists
+  ios_config:
+    lines:
+      - ip access-list extended {{ item.name }}
+      - {{ item.rule }}
+    parents: []
+  loop: "{{ extended_acls }}"
+  when: extended_acls is defined
+  
+- name: Configure standard access lists
+  ios_config:
+    lines:
+      - access-list {{ item.number }} {{ item.action }} {{ item.source }} {{ item.wildcard | default('') }}
+  loop: "{{ standard_acls }}"
+  when: standard_acls is defined
+  
+- name: Apply access lists to interfaces
+  ios_config:
+    lines:
+      - ip access-group {{ item.acl_name }} {{ item.direction }}
+    parents: interface {{ item.interface }}
+  loop: "{{ interface_acls }}"
+  when: interface_acls is defined
+  
+- name: Configure zone-based firewall zones
+  ios_config:
+    lines:
+      - zone security {{ item.name }}
+      - description {{ item.description }}
+    parents: []
+  loop: "{{ security_zones }}"
+  when: enable_zbf | default(false) and security_zones is defined
+  
+- name: Configure zone-based firewall policies
+  ios_config:
+    lines:
+      - policy-map type inspect {{ item.name }}
+      - class type inspect {{ item.class }}
+      - inspect
+    parents: []
+  loop: "{{ zbf_policies }}"
+  when: enable_zbf | default(false) and zbf_policies is defined

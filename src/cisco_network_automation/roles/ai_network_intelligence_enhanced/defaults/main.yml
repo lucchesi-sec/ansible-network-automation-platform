@@ -1,0 +1,441 @@
+---
+# AI Network Intelligence Enhanced - Default Variables
+# Comprehensive ML/AI platform configuration extending existing capabilities
+
+# Feature Toggles
+ai_optimization_enabled: true
+automation_controller_enabled: true
+ml_pipeline_enabled: true
+chatops_integration_enabled: true
+explainable_ai_enabled: true
+
+# Legacy Compatibility Settings
+legacy_compatibility_mode: true
+migration_strategy: gradual
+backward_compatibility: true
+
+# ML Infrastructure Configuration
+ml_infrastructure:
+  cluster_name: "ai-ml-cluster"
+  namespace: "ai-network-intelligence"
+  environment: "{{ ansible_environment | default('development') }}"
+  
+  # Kubernetes Configuration
+  kubernetes:
+    cluster_endpoint: "{{ ml_cluster_endpoint | default('https://k8s.ai.local:6443') }}"
+    service_account: "ai-ml-service-account"
+    resource_limits:
+      cpu: "4"
+      memory: "8Gi"
+      gpu: "1"
+    
+  # Storage Configuration
+  storage:
+    data_lake:
+      type: "s3"
+      bucket: "network-ml-data-lake"
+      region: "us-east-1"
+      retention_days: 730
+      
+    feature_store:
+      type: "feast"
+      online_store: "redis://redis.ai.local:6379"
+      offline_store: "s3://network-ml-data-lake/features"
+      
+    model_registry:
+      type: "mlflow"
+      endpoint: "http://mlflow.ai.local:5000"
+      artifact_store: "s3://network-ml-models"
+
+# Model Configuration
+ml_models:
+  anomaly_detection:
+    enabled: true
+    algorithm: "isolation_forest"
+    framework: "sklearn"
+    version: "1.0.0"
+    accuracy_threshold: 0.85
+    training_schedule: "0 2 * * 0"  # Weekly Sunday 2 AM
+    serving_config:
+      replicas: 3
+      cpu_request: "500m"
+      memory_request: "1Gi"
+      
+  traffic_prediction:
+    enabled: true
+    algorithm: "lstm"
+    framework: "tensorflow"
+    version: "1.0.0"
+    accuracy_threshold: 0.90
+    training_schedule: "0 3 * * 0"  # Weekly Sunday 3 AM
+    serving_config:
+      replicas: 2
+      cpu_request: "1"
+      memory_request: "2Gi"
+      gpu_request: "1"
+      
+  performance_optimization:
+    enabled: true
+    algorithm: "xgboost"
+    framework: "xgboost"
+    version: "1.0.0"
+    accuracy_threshold: 0.87
+    training_schedule: "0 4 * * 0"  # Weekly Sunday 4 AM
+    serving_config:
+      replicas: 2
+      cpu_request: "750m"
+      memory_request: "1.5Gi"
+      
+  security_threat_detection:
+    enabled: true
+    algorithm: "transformer"
+    framework: "pytorch"
+    version: "1.0.0"
+    accuracy_threshold: 0.92
+    training_schedule: "0 1 * * *"  # Daily 1 AM
+    serving_config:
+      replicas: 4
+      cpu_request: "1"
+      memory_request: "2Gi"
+      gpu_request: "1"
+
+# Data Pipeline Configuration
+data_pipeline:
+  ingestion:
+    kafka:
+      bootstrap_servers: "kafka.ai.local:9092"
+      topics:
+        telemetry: "network.telemetry.raw"
+        processed: "network.telemetry.processed"
+        alerts: "network.alerts"
+      consumer_group: "ai-network-intelligence"
+      
+    sources:
+      snmp:
+        enabled: true
+        polling_interval: 300  # 5 minutes
+        oids:
+          - interface_stats
+          - cpu_utilization
+          - memory_utilization
+          
+      syslog:
+        enabled: true
+        port: 514
+        format: "rfc3164"
+        
+      netflow:
+        enabled: true
+        port: 2055
+        version: 9
+        
+  processing:
+    stream_processing:
+      framework: "kafka_streams"
+      state_store: "rocksdb"
+      windowing: "5m"
+      
+    batch_processing:
+      framework: "spark"
+      schedule: "0 */6 * * *"  # Every 6 hours
+      executor_memory: "4g"
+      executor_cores: 2
+
+# Training Configuration
+training_config:
+  compute:
+    cpu_cores: 8
+    memory_gb: 32
+    gpu_count: 2
+    gpu_type: "nvidia-tesla-t4"
+    
+  hyperparameter_optimization:
+    enabled: true
+    framework: "optuna"
+    n_trials: 100
+    timeout_hours: 6
+    
+  experiment_tracking:
+    platform: "mlflow"
+    auto_log: true
+    log_models: true
+    log_artifacts: true
+    
+  validation:
+    test_size: 0.2
+    validation_size: 0.1
+    cross_validation_folds: 5
+    stratify: true
+
+# Serving Configuration
+serving_config:
+  api_gateway:
+    enabled: true
+    host: "api.ai.local"
+    port: 443
+    ssl_enabled: true
+    rate_limiting:
+      requests_per_minute: 1000
+      burst_size: 100
+      
+  load_balancer:
+    type: "nginx"
+    algorithm: "round_robin"
+    health_check_interval: 30
+    
+  monitoring:
+    metrics:
+      - accuracy
+      - latency
+      - throughput
+      - error_rate
+    alerting:
+      accuracy_threshold: 0.80
+      latency_threshold_ms: 100
+      error_rate_threshold: 0.01
+
+# Automation Configuration
+automation_config:
+  rules_engine:
+    enabled: true
+    rules_directory: "/opt/ai/rules"
+    evaluation_interval: 60  # seconds
+    
+  workflows:
+    orchestrator: "airflow"
+    webserver_host: "airflow.ai.local"
+    webserver_port: 8080
+    
+  decision_making:
+    confidence_threshold: 0.8
+    human_approval_threshold: 0.95
+    auto_execution_enabled: true
+    
+  feedback_loop:
+    enabled: true
+    learning_rate: 0.01
+    adaptation_interval: 3600  # 1 hour
+
+# ChatOps Configuration
+chatops_config:
+  platforms:
+    slack:
+      enabled: true
+      bot_token: "{{ vault_slack_bot_token }}"
+      signing_secret: "{{ vault_slack_signing_secret }}"
+      channels:
+        - "#network-operations"
+        - "#ai-ml-alerts"
+        - "#incident-response"
+        
+    microsoft_teams:
+      enabled: false
+      app_id: "{{ vault_teams_app_id }}"
+      app_password: "{{ vault_teams_app_password }}"
+      
+    discord:
+      enabled: false
+      bot_token: "{{ vault_discord_bot_token }}"
+      
+  commands:
+    prefix: "/ai"
+    timeout: 300
+    permissions:
+      model_management: ["ml_engineer", "network_admin"]
+      predictions: ["network_operator", "network_admin"]
+      automation: ["network_admin"]
+      
+  notifications:
+    anomaly_alerts: true
+    model_deployments: true
+    automation_actions: true
+    system_health: true
+
+# Monitoring Configuration
+monitoring_config:
+  prometheus:
+    endpoint: "http://prometheus.ai.local:9090"
+    scrape_interval: "30s"
+    evaluation_interval: "30s"
+    
+  grafana:
+    endpoint: "http://grafana.ai.local:3000"
+    admin_user: "{{ vault_grafana_admin_user }}"
+    admin_password: "{{ vault_grafana_admin_password }}"
+    
+  jaeger:
+    endpoint: "http://jaeger.ai.local:14268"
+    sampler_type: "probabilistic"
+    sampler_param: 0.1
+    
+  alerts:
+    channels:
+      - type: "slack"
+        webhook: "{{ vault_slack_webhook_url }}"
+      - type: "email"
+        smtp_server: "smtp.company.local"
+        recipients: ["ml-team@company.local"]
+        
+    rules:
+      model_accuracy_drop:
+        threshold: 0.05
+        severity: "warning"
+        
+      inference_latency_high:
+        threshold: 200  # ms
+        severity: "critical"
+        
+      data_drift_detected:
+        threshold: 0.1
+        severity: "warning"
+
+# Security Configuration
+security_config:
+  encryption:
+    at_rest:
+      enabled: true
+      algorithm: "AES-256-GCM"
+      key_management: "vault"
+      
+    in_transit:
+      enabled: true
+      tls_version: "1.3"
+      mutual_tls: true
+      
+  authentication:
+    type: "certificate"
+    ca_cert: "{{ vault_ca_certificate }}"
+    client_cert: "{{ vault_client_certificate }}"
+    client_key: "{{ vault_client_key }}"
+    
+  authorization:
+    rbac_enabled: true
+    roles:
+      - name: "ml_engineer"
+        permissions:
+          - "models:create"
+          - "models:train"
+          - "models:deploy:staging"
+          
+      - name: "ml_admin"
+        permissions:
+          - "models:*"
+          - "data:*"
+          - "infrastructure:*"
+          
+      - name: "network_operator"
+        permissions:
+          - "models:predict"
+          - "models:view"
+          - "metrics:view"
+          
+  compliance:
+    audit_logging: true
+    data_governance: true
+    privacy_protection: true
+    retention_policies: true
+
+# Performance Configuration
+performance_config:
+  model_optimization:
+    quantization: true
+    pruning: false
+    distillation: false
+    
+  caching:
+    prediction_cache:
+      enabled: true
+      ttl: 300  # 5 minutes
+      size_mb: 1024
+      
+    feature_cache:
+      enabled: true
+      ttl: 600  # 10 minutes
+      size_mb: 2048
+      
+  batching:
+    enabled: true
+    max_batch_size: 32
+    timeout_ms: 50
+
+# Integration Configuration
+integration_config:
+  existing_roles:
+    cisco_ai_optimization:
+      enabled: true
+      migration_mode: "enhance"
+      compatibility_layer: true
+      
+    cisco_predictive_analytics:
+      enabled: true
+      migration_mode: "replace"
+      data_migration: true
+      
+    cisco_automation_controller:
+      enabled: true
+      migration_mode: "integrate"
+      shared_workflows: true
+      
+  external_systems:
+    network_management:
+      - name: "cisco_prime"
+        type: "snmp"
+        endpoint: "prime.company.local"
+        
+      - name: "solarwinds"
+        type: "api"
+        endpoint: "https://solarwinds.company.local/api"
+        
+    security_systems:
+      - name: "splunk"
+        type: "api"
+        endpoint: "https://splunk.company.local:8089"
+        
+      - name: "palo_alto_panorama"
+        type: "api"
+        endpoint: "https://panorama.company.local/api"
+
+# Environment Specific Overrides
+environment_overrides:
+  development:
+    ml_models:
+      anomaly_detection:
+        accuracy_threshold: 0.70
+      traffic_prediction:
+        accuracy_threshold: 0.75
+        
+    training_config:
+      hyperparameter_optimization:
+        n_trials: 10
+        timeout_hours: 1
+        
+  staging:
+    ml_models:
+      anomaly_detection:
+        accuracy_threshold: 0.80
+      traffic_prediction:
+        accuracy_threshold: 0.85
+        
+    serving_config:
+      api_gateway:
+        rate_limiting:
+          requests_per_minute: 500
+          
+  production:
+    ml_models:
+      anomaly_detection:
+        accuracy_threshold: 0.90
+      traffic_prediction:
+        accuracy_threshold: 0.92
+        
+    security_config:
+      authentication:
+        multi_factor: true
+        token_expiry: "12h"
+        
+    monitoring_config:
+      alerts:
+        rules:
+          model_accuracy_drop:
+            threshold: 0.02
+            severity: "critical"

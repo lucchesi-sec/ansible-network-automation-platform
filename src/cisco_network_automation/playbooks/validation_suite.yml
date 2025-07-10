@@ -1,0 +1,78 @@
+---
+- name: "Validation Suite - Enterprise Network Infrastructure"
+  hosts: localhost
+  gather_facts: true
+  vars:
+    validation_timestamp: "{{ ansible_date_time.epoch }}"
+    validation_report_dir: "{{ playbook_dir }}/../logs/validation_{{ validation_timestamp }}"
+    
+  tasks:
+    - name: Create validation report directory
+      file:
+        path: "{{ validation_report_dir }}"
+        state: directory
+        mode: '0755'
+      tags: [validation]
+
+    - name: Test - Ansible Syntax Validation
+      shell: |
+        cd {{ playbook_dir }}/..
+        ansible-playbook --syntax-check playbooks/*.yml
+      register: syntax_check
+      ignore_errors: true
+      tags: [validation, syntax]
+
+    - name: Test - Inventory Validation
+      shell: |
+        cd {{ playbook_dir }}/..
+        ansible-inventory --list -i inventory/production.yml > /dev/null
+      register: inventory_check
+      ignore_errors: true
+      tags: [validation, inventory]
+
+    - name: Test - Role Structure Validation
+      find:
+        paths: "{{ playbook_dir }}/../roles"
+        patterns: "main.yml"
+        file_type: file
+        recurse: true
+      register: role_main_files
+      tags: [validation, roles]
+
+    - name: Test - Variable Schema Validation
+      shell: |
+        cd {{ playbook_dir }}/..
+        find group_vars -name "*.yml" -exec echo "Valid: {}" \;
+      register: variable_validation
+      ignore_errors: true
+      tags: [validation, variables]
+
+    - name: Test - Deployment Readiness Check
+      shell: |
+        cd {{ playbook_dir }}/..
+        ansible-playbook --check playbooks/validate_pre_deployment.yml
+      register: deployment_readiness
+      ignore_errors: true
+      tags: [validation, deployment]
+
+    - name: Generate validation summary
+      copy:
+        content: |
+          VALIDATION SUITE SUMMARY
+          Syntax: {{ 'PASS' if syntax_check.rc == 0 else 'FAIL' }}
+          Inventory: {{ 'PASS' if inventory_check.rc == 0 else 'FAIL' }}
+          Roles: {{ 'PASS' if role_main_files.matched > 0 else 'FAIL' }}
+          Variables: {{ 'PASS' if variable_validation.rc == 0 else 'FAIL' }}
+          Deployment: {{ 'PASS' if deployment_readiness.rc == 0 else 'FAIL' }}
+          Roles Found: {{ role_main_files.matched }}
+          Completed: {{ ansible_date_time.iso8601 }}
+        dest: "{{ validation_report_dir }}/validation_summary.txt"
+      tags: [validation, summary]
+
+    - name: Display validation results
+      debug:
+        msg: |
+          Validation suite completed!
+          Reports: {{ validation_report_dir }}
+          Status: {{ 'PASS' if (syntax_check.rc == 0 and inventory_check.rc == 0) else 'REVIEW' }}
+      tags: [validation, results]

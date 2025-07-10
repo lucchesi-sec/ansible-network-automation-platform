@@ -1,0 +1,54 @@
+---
+# Logging and Monitoring Security Tasks
+# Configures comprehensive logging and monitoring
+
+- name: Configure logging settings
+  ios_config:
+    lines:
+      - logging buffered {{ log_buffer_size }}
+      - logging console critical
+      - logging monitor warnings
+      - logging trap informational
+      - logging facility local0
+      - logging source-interface {{ logging_source_interface }}
+  when: logging_source_interface is defined
+  
+- name: Configure remote logging servers
+  ios_config:
+    lines:
+      - logging host {{ item.host }} transport {{ item.transport | default('udp') }} port {{ item.port | default('514') }}
+  loop: "{{ logging_servers }}"
+  when: logging_servers is defined
+  
+- name: Configure archive logging
+  ios_config:
+    lines:
+      - archive
+      - log config
+      - logging enable
+      - logging size {{ archive_log_size }}
+      - notify syslog
+      - hidekeys
+      
+- name: Configure event logging
+  ios_config:
+    lines:
+      - event manager applet {{ item.name }}
+      - event {{ item.event }}
+      - action {{ item.action_number }} {{ item.action }}
+  loop: "{{ event_managers }}"
+  when: event_managers is defined
+  
+- name: Configure SNMP logging
+  ios_config:
+    lines:
+      - snmp-server enable traps {{ item }}
+  loop: "{{ snmp_traps }}"
+  when: snmp_traps is defined
+  
+- name: Configure security logging
+  ios_config:
+    lines:
+      - login on-failure log
+      - login on-success log
+      - security authentication failure rate {{ auth_failure_rate }} log

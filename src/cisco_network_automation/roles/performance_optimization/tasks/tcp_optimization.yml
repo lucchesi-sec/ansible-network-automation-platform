@@ -1,0 +1,54 @@
+---
+# TCP Optimization Tasks
+# Configures TCP optimization settings
+
+- name: Configure TCP path MTU discovery
+  cisco.ios.ios_config:
+    lines:
+      - ip tcp path-mtu-discovery
+    match: line
+  when: tcp_optimization.path_mtu_discovery | bool
+
+- name: Configure TCP selective acknowledgment
+  cisco.ios.ios_config:
+    lines:
+      - ip tcp selective-ack
+    match: line
+  when: tcp_optimization.selective_ack | bool
+
+- name: Configure TCP timestamp
+  cisco.ios.ios_config:
+    lines:
+      - ip tcp timestamp
+    match: line
+  when: tcp_optimization.timestamp | bool
+
+- name: Configure TCP window scaling
+  cisco.ios.ios_config:
+    lines:
+      - ip tcp window-scaling
+    match: line
+  when: tcp_optimization.window_scaling | bool
+
+- name: Configure TCP connection timeout
+  cisco.ios.ios_config:
+    lines:
+      - ip tcp synwait-time {{ tcp_optimization.synwait_time }}
+    match: line
+
+- name: Configure TCP keepalive settings
+  cisco.ios.ios_config:
+    lines:
+      - service tcp-keepalives-in
+      - service tcp-keepalives-out
+    match: line
+
+- name: Configure TCP MSS adjustment
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - ip tcp adjust-mss {{ item.mss }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ tcp_mss_interfaces }}"
+  when: tcp_mss_interfaces is defined

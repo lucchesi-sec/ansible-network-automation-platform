@@ -1,0 +1,727 @@
+---
+# REST API Specification - Monitoring & Observability Platform
+# OpenAPI 3.0 specification for enterprise monitoring system
+
+api_specification:
+  openapi: "3.0.3"
+  info:
+    title: "Enterprise Monitoring & Observability API"
+    description: "Comprehensive API for metrics collection, alerting, dashboard management, and log processing"
+    version: "1.0.0"
+    contact:
+      name: "Network Operations Team"
+      email: "netops@enterprise.local"
+    license:
+      name: "MIT"
+      url: "https://opensource.org/licenses/MIT"
+  
+  servers:
+    - url: "https://monitoring.enterprise.local/api/v1"
+      description: "Production monitoring API"
+    - url: "https://monitoring-staging.enterprise.local/api/v1"
+      description: "Staging environment"
+  
+  security:
+    - bearerAuth: []
+    - apiKey: []
+
+# Metrics Collection APIs
+metrics_collection_apis:
+  # Metrics Ingestion Endpoint
+  "/metrics/ingest":
+    post:
+      summary: "Ingest time-series metrics"
+      description: "Accept and process time-series metrics from various sources"
+      tags: ["Metrics Collection"]
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              properties:
+                metrics:
+                  type: "array"
+                  items:
+                    $ref: "#/components/schemas/MetricDataPoint"
+                source:
+                  type: "string"
+                  description: "Source system identifier"
+                timestamp:
+                  type: "string"
+                  format: "date-time"
+                  description: "Batch timestamp"
+                metadata:
+                  type: "object"
+                  description: "Additional metadata"
+      responses:
+        "201":
+          description: "Metrics successfully ingested"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/IngestionResponse"
+        "400":
+          description: "Invalid metric data"
+        "429":
+          description: "Rate limit exceeded"
+        "500":
+          description: "Internal server error"
+
+  # Query Metrics
+  "/metrics/query":
+    get:
+      summary: "Query time-series metrics"
+      description: "Execute PromQL queries against metric data"
+      tags: ["Metrics Collection"]
+      parameters:
+        - name: "query"
+          in: "query"
+          required: true
+          schema:
+            type: "string"
+          description: "PromQL query expression"
+        - name: "start"
+          in: "query"
+          schema:
+            type: "string"
+            format: "date-time"
+          description: "Start time for query range"
+        - name: "end"
+          in: "query"
+          schema:
+            type: "string"
+            format: "date-time"
+          description: "End time for query range"
+        - name: "step"
+          in: "query"
+          schema:
+            type: "string"
+          description: "Query resolution step"
+      responses:
+        "200":
+          description: "Query results"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/QueryResponse"
+
+  # Metric Metadata
+  "/metrics/metadata":
+    get:
+      summary: "List available metrics"
+      description: "Get metadata for all available metrics"
+      tags: ["Metrics Collection"]
+      parameters:
+        - name: "filter"
+          in: "query"
+          schema:
+            type: "string"
+          description: "Filter metrics by name pattern"
+        - name: "source"
+          in: "query"
+          schema:
+            type: "string"
+          description: "Filter by source system"
+      responses:
+        "200":
+          description: "Metric metadata list"
+          content:
+            "application/json":
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/MetricMetadata"
+
+# Alert Management APIs
+alert_management_apis:
+  # Alert Rules Management
+  "/alerts/rules":
+    get:
+      summary: "List alert rules"
+      description: "Get all alert rules with optional filtering"
+      tags: ["Alert Management"]
+      parameters:
+        - name: "enabled"
+          in: "query"
+          schema:
+            type: "boolean"
+          description: "Filter by enabled status"
+        - name: "severity"
+          in: "query"
+          schema:
+            type: "string"
+            enum: ["critical", "warning", "info"]
+          description: "Filter by severity"
+      responses:
+        "200":
+          description: "List of alert rules"
+          content:
+            "application/json":
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/AlertRule"
+    
+    post:
+      summary: "Create alert rule"
+      description: "Create a new alert rule"
+      tags: ["Alert Management"]
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/CreateAlertRuleRequest"
+      responses:
+        "201":
+          description: "Alert rule created"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+
+  "/alerts/rules/{ruleId}":
+    get:
+      summary: "Get alert rule"
+      description: "Get specific alert rule by ID"
+      tags: ["Alert Management"]
+      parameters:
+        - name: "ruleId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "Alert rule details"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+    
+    put:
+      summary: "Update alert rule"
+      description: "Update an existing alert rule"
+      tags: ["Alert Management"]
+      parameters:
+        - name: "ruleId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/UpdateAlertRuleRequest"
+      responses:
+        "200":
+          description: "Alert rule updated"
+    
+    delete:
+      summary: "Delete alert rule"
+      description: "Delete an alert rule"
+      tags: ["Alert Management"]
+      parameters:
+        - name: "ruleId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "204":
+          description: "Alert rule deleted"
+
+  # Alert Instances
+  "/alerts/instances":
+    get:
+      summary: "List active alerts"
+      description: "Get currently active alert instances"
+      tags: ["Alert Management"]
+      parameters:
+        - name: "state"
+          in: "query"
+          schema:
+            type: "string"
+            enum: ["pending", "firing", "resolved"]
+        - name: "severity"
+          in: "query"
+          schema:
+            type: "string"
+            enum: ["critical", "warning", "info"]
+      responses:
+        "200":
+          description: "Active alert instances"
+          content:
+            "application/json":
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/AlertInstance"
+
+  # Notification Management
+  "/alerts/notifications":
+    get:
+      summary: "List notifications"
+      description: "Get notification history"
+      tags: ["Alert Management"]
+      parameters:
+        - name: "status"
+          in: "query"
+          schema:
+            type: "string"
+            enum: ["pending", "sent", "failed", "acknowledged"]
+        - name: "channel"
+          in: "query"
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "Notification list"
+          content:
+            "application/json":
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Notification"
+    
+    post:
+      summary: "Send test notification"
+      description: "Send a test notification to verify channel configuration"
+      tags: ["Alert Management"]
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/TestNotificationRequest"
+      responses:
+        "200":
+          description: "Test notification sent"
+
+# Dashboard Management APIs
+dashboard_management_apis:
+  # Dashboard CRUD
+  "/dashboards":
+    get:
+      summary: "List dashboards"
+      description: "Get all dashboards with optional filtering"
+      tags: ["Visualization"]
+      parameters:
+        - name: "folder"
+          in: "query"
+          schema:
+            type: "string"
+          description: "Filter by folder"
+        - name: "tags"
+          in: "query"
+          schema:
+            type: "array"
+            items:
+              type: "string"
+          description: "Filter by tags"
+      responses:
+        "200":
+          description: "Dashboard list"
+          content:
+            "application/json":
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/DashboardSummary"
+    
+    post:
+      summary: "Create dashboard"
+      description: "Create a new dashboard"
+      tags: ["Visualization"]
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/CreateDashboardRequest"
+      responses:
+        "201":
+          description: "Dashboard created"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+
+  "/dashboards/{dashboardId}":
+    get:
+      summary: "Get dashboard"
+      description: "Get dashboard configuration"
+      tags: ["Visualization"]
+      parameters:
+        - name: "dashboardId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      responses:
+        "200":
+          description: "Dashboard configuration"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+    
+    put:
+      summary: "Update dashboard"
+      description: "Update dashboard configuration"
+      tags: ["Visualization"]
+      parameters:
+        - name: "dashboardId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/UpdateDashboardRequest"
+      responses:
+        "200":
+          description: "Dashboard updated"
+
+  # Dashboard Data
+  "/dashboards/{dashboardId}/data":
+    get:
+      summary: "Get dashboard data"
+      description: "Execute all dashboard queries and return data"
+      tags: ["Visualization"]
+      parameters:
+        - name: "dashboardId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            format: "uuid"
+        - name: "from"
+          in: "query"
+          schema:
+            type: "string"
+            format: "date-time"
+        - name: "to"
+          in: "query"
+          schema:
+            type: "string"
+            format: "date-time"
+      responses:
+        "200":
+          description: "Dashboard data"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/DashboardData"
+
+# Log Processing APIs
+log_processing_apis:
+  # Log Ingestion
+  "/logs/ingest":
+    post:
+      summary: "Ingest log entries"
+      description: "Accept and process log entries"
+      tags: ["Log Processing"]
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              properties:
+                logs:
+                  type: "array"
+                  items:
+                    $ref: "#/components/schemas/LogEntry"
+                source:
+                  type: "string"
+                batch_id:
+                  type: "string"
+      responses:
+        "201":
+          description: "Logs ingested successfully"
+        "400":
+          description: "Invalid log data"
+
+  # Log Search
+  "/logs/search":
+    post:
+      summary: "Search logs"
+      description: "Execute search queries against log data"
+      tags: ["Log Processing"]
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/LogSearchRequest"
+      responses:
+        "200":
+          description: "Search results"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/LogSearchResponse"
+
+  # Log Aggregation
+  "/logs/aggregate":
+    post:
+      summary: "Aggregate log data"
+      description: "Perform aggregations on log data"
+      tags: ["Log Processing"]
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/LogAggregationRequest"
+      responses:
+        "200":
+          description: "Aggregation results"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/LogAggregationResponse"
+
+# Data Schemas
+api_schemas:
+  MetricDataPoint:
+    type: "object"
+    required: ["name", "value", "timestamp"]
+    properties:
+      name:
+        type: "string"
+        description: "Metric name"
+        pattern: "^[a-zA-Z_:][a-zA-Z0-9_:]*$"
+      value:
+        type: "number"
+        description: "Metric value"
+      timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp in RFC3339 format"
+      labels:
+        type: "object"
+        additionalProperties:
+          type: "string"
+        description: "Metric labels"
+      type:
+        type: "string"
+        enum: ["gauge", "counter", "histogram", "summary"]
+        description: "Metric type"
+
+  AlertRule:
+    type: "object"
+    required: ["id", "name", "expression", "severity"]
+    properties:
+      id:
+        type: "string"
+        format: "uuid"
+      name:
+        type: "string"
+        description: "Human-readable alert rule name"
+      description:
+        type: "string"
+        description: "Alert rule description"
+      expression:
+        type: "string"
+        description: "PromQL expression for the alert condition"
+      severity:
+        type: "string"
+        enum: ["critical", "warning", "info"]
+      for_duration:
+        type: "string"
+        description: "Duration the condition must be true before firing"
+      labels:
+        type: "object"
+        additionalProperties:
+          type: "string"
+      annotations:
+        type: "object"
+        additionalProperties:
+          type: "string"
+      enabled:
+        type: "boolean"
+      created_at:
+        type: "string"
+        format: "date-time"
+      updated_at:
+        type: "string"
+        format: "date-time"
+
+  Dashboard:
+    type: "object"
+    required: ["id", "title", "panels"]
+    properties:
+      id:
+        type: "string"
+        format: "uuid"
+      title:
+        type: "string"
+        description: "Dashboard title"
+      description:
+        type: "string"
+      tags:
+        type: "array"
+        items:
+          type: "string"
+      panels:
+        type: "array"
+        items:
+          $ref: "#/components/schemas/Panel"
+      variables:
+        type: "array"
+        items:
+          $ref: "#/components/schemas/DashboardVariable"
+      time_range:
+        $ref: "#/components/schemas/TimeRange"
+      refresh_interval:
+        type: "string"
+        description: "Auto-refresh interval"
+
+  Panel:
+    type: "object"
+    required: ["id", "title", "type", "targets"]
+    properties:
+      id:
+        type: "string"
+      title:
+        type: "string"
+      type:
+        type: "string"
+        enum: ["graph", "singlestat", "table", "heatmap", "gauge", "bar"]
+      targets:
+        type: "array"
+        items:
+          $ref: "#/components/schemas/QueryTarget"
+      position:
+        $ref: "#/components/schemas/PanelPosition"
+      options:
+        type: "object"
+        description: "Panel-specific configuration options"
+
+  LogEntry:
+    type: "object"
+    required: ["timestamp", "level", "message", "source"]
+    properties:
+      id:
+        type: "string"
+        format: "uuid"
+      timestamp:
+        type: "string"
+        format: "date-time"
+      level:
+        type: "string"
+        enum: ["debug", "info", "warn", "error", "fatal"]
+      message:
+        type: "string"
+      source:
+        type: "string"
+        description: "Source system or application"
+      facility:
+        type: "string"
+      hostname:
+        type: "string"
+      application:
+        type: "string"
+      process_id:
+        type: "string"
+      structured_data:
+        type: "object"
+        description: "Additional structured log data"
+      raw_message:
+        type: "string"
+        description: "Original raw log message"
+
+# Rate Limiting and Throttling
+rate_limiting:
+  ingestion_endpoints:
+    metrics_ingest:
+      rate_limit: "10000/minute"
+      burst_limit: "100"
+      quota_type: "sliding_window"
+    logs_ingest:
+      rate_limit: "50000/minute"
+      burst_limit: "500"
+      quota_type: "sliding_window"
+  
+  query_endpoints:
+    metrics_query:
+      rate_limit: "1000/minute"
+      burst_limit: "50"
+      quota_type: "token_bucket"
+    logs_search:
+      rate_limit: "100/minute"
+      burst_limit: "10"
+      quota_type: "token_bucket"
+
+# API Versioning Strategy
+versioning:
+  strategy: "url_versioning"
+  current_version: "v1"
+  supported_versions: ["v1"]
+  deprecation_policy:
+    - "6 months notice before deprecation"
+    - "1 year support for deprecated versions"
+    - "Migration guides provided"
+
+# Authentication and Authorization
+security_schemes:
+  bearerAuth:
+    type: "http"
+    scheme: "bearer"
+    bearerFormat: "JWT"
+  apiKey:
+    type: "apiKey"
+    in: "header"
+    name: "X-API-Key"
+
+# Error Handling
+error_responses:
+  standard_errors:
+    "400":
+      description: "Bad Request"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    "401":
+      description: "Unauthorized"
+    "403":
+      description: "Forbidden"
+    "404":
+      description: "Not Found"
+    "429":
+      description: "Too Many Requests"
+    "500":
+      description: "Internal Server Error"
+
+  ErrorResponse:
+    type: "object"
+    properties:
+      error:
+        type: "string"
+        description: "Error code"
+      message:
+        type: "string"
+        description: "Human-readable error message"
+      details:
+        type: "object"
+        description: "Additional error details"
+      timestamp:
+        type: "string"
+        format: "date-time"
+      request_id:
+        type: "string"
+        description: "Unique request identifier for tracking"

@@ -1,0 +1,79 @@
+---
+# Enterprise Security & AI Automation Deployment Playbook
+# Phase 4: Zero Trust Framework & AI Integration
+
+- name: Deploy Zero Trust Security Framework
+  hosts: 
+    - zero_trust_controllers
+    - identity_switches
+    - microsegmentation_switches
+    - perimeter_routers
+    - verification_appliances
+  gather_facts: false
+  strategy: free
+  vars:
+    deployment_phase: "zero_trust_security"
+  roles:
+    - role: cisco_zero_trust_policies
+      when: device_role == "zero_trust_controller"
+    - role: cisco_identity_based_networking
+      when: device_role == "identity_switch"
+    - role: cisco_micro_segmentation_advanced
+      when: device_role == "microsegmentation_switch"
+    - role: cisco_software_defined_perimeter
+      when: device_role == "perimeter_router"
+    - role: cisco_continuous_verification
+      when: device_role == "verification_appliance"
+
+- name: Deploy AI Automation Framework
+  hosts:
+    - automation_controllers
+    - analytics_engines
+  gather_facts: false
+  strategy: free
+  vars:
+    deployment_phase: "ai_automation"
+  roles:
+    - role: cisco_automation_controller
+      when: device_role == "automation_controller"
+    - role: cisco_predictive_analytics
+      when: device_role == "analytics_engine" and analytics_type == "predictive"
+    - role: cisco_self_healing_networks
+      when: device_role == "automation_controller"
+    - role: cisco_ai_optimization
+      when: device_role == "automation_controller"
+    - role: cisco_event_driven_automation
+      when: device_role == "automation_controller"
+
+- name: Integration Testing and Validation
+  hosts: 
+    - zero_trust_controllers
+    - automation_controllers
+  gather_facts: false
+  serial: 1
+  vars:
+    deployment_phase: "integration_validation"
+  tasks:
+    - name: Validate Zero Trust Policy Enforcement
+      cisco.ios.ios_command:
+        commands:
+          - show zero-trust policy status
+          - show identity source status
+          - show micro-segmentation status
+      register: zt_status
+      when: device_role == "zero_trust_controller"
+
+    - name: Validate AI Automation Systems
+      cisco.ios.ios_command:
+        commands:
+          - show automation controller status
+          - show ml-model status
+          - show event-processor status
+      register: ai_status
+      when: device_role == "automation_controller"
+
+    - name: Generate Deployment Report
+      template:
+        src: deployment_report.j2
+        dest: "{{ playbook_dir }}/../logs/phase4_deployment_{{ inventory_hostname }}.log"
+      delegate_to: localhost

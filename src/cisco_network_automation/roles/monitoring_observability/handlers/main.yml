@@ -1,0 +1,98 @@
+---
+# Monitoring & Observability Handlers
+# Service restart and reload handlers for monitoring components
+
+- name: restart prometheus
+  docker_container:
+    name: prometheus
+    restart: yes
+  listen: "restart prometheus"
+
+- name: reload prometheus
+  uri:
+    url: "http://{{ ansible_default_ipv4.address }}:9090/-/reload"
+    method: POST
+    status_code: 200
+  listen: "reload prometheus"
+
+- name: restart alertmanager
+  docker_container:
+    name: alertmanager
+    restart: yes
+  listen: "restart alertmanager"
+
+- name: reload alertmanager
+  uri:
+    url: "http://{{ ansible_default_ipv4.address }}:9093/-/reload"
+    method: POST
+    status_code: 200
+  listen: "reload alertmanager"
+
+- name: restart grafana
+  docker_container:
+    name: grafana
+    restart: yes
+  listen: "restart grafana"
+
+- name: restart influxdb
+  docker_container:
+    name: influxdb
+    restart: yes
+  listen: "restart influxdb"
+
+- name: restart elasticsearch
+  docker_container:
+    name: elasticsearch
+    restart: yes
+  listen: "restart elasticsearch"
+
+- name: restart logstash
+  docker_container:
+    name: logstash
+    restart: yes
+  listen: "restart logstash"
+
+- name: restart kibana
+  docker_container:
+    name: kibana
+    restart: yes
+  listen: "restart kibana"
+
+- name: restart kafka
+  docker_container:
+    name: kafka
+    restart: yes
+  listen: "restart kafka"
+
+- name: restart snmp-exporter
+  docker_container:
+    name: snmp-exporter
+    restart: yes
+  listen: "restart snmp-exporter"
+
+- name: reload nginx
+  service:
+    name: nginx
+    state: reloaded
+  listen: "reload nginx"
+
+- name: restart docker
+  service:
+    name: docker
+    state: restarted
+  listen: "restart docker"
+
+- name: rebuild monitoring network
+  docker_network:
+    name: monitoring
+    state: absent
+  notify: recreate monitoring network
+  listen: "rebuild monitoring network"
+
+- name: recreate monitoring network
+  docker_network:
+    name: monitoring
+    driver: bridge
+    ipam_config:
+      - subnet: "172.20.0.0/16"
+  listen: "recreate monitoring network"

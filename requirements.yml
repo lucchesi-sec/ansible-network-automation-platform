@@ -1,4 +1,8 @@
 ---
-# Simple requirements for AWS automation
+# Ansible collections for both AWS and network automation
 collections:
   - name: amazon.aws
+  - name: cisco.ios
+    version: ">=5.0.0"
+  - name: ansible.netcommon
+    version: ">=5.0.0"

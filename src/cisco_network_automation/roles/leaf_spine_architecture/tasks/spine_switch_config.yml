@@ -1,0 +1,82 @@
+---
+# Spine Switch Configuration Tasks
+# Configures Cisco spine switches for data center fabric
+
+- name: Configure spine switch hostname and domain
+  cisco.ios.ios_config:
+    lines:
+      - hostname {{ inventory_hostname }}
+      - ip domain-name {{ datacenter_domain }}
+      - ip name-server {{ dns_servers | join(' ') }}
+    match: line
+
+- name: Enable advanced routing features on spine
+  cisco.ios.ios_config:
+    lines:
+      - feature bgp
+      - feature ospf
+      - feature multicast
+      - feature pim
+      - feature nv overlay
+    match: line
+
+- name: Configure spine switch interfaces for fabric connectivity
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - description {{ item.description }}
+      - no switchport
+      - ip address {{ item.ip_address }} {{ item.subnet_mask }}
+      - ip ospf network point-to-point
+      - ip ospf area {{ ospf_area }}
+      - ip pim sparse-mode
+      - no shutdown
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ spine_leaf_interfaces }}"
+  when: spine_leaf_interfaces is defined
+
+- name: Configure spine management interface
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ mgmt_interface }}
+      - ip address {{ mgmt_ip }} {{ mgmt_subnet_mask }}
+      - no shutdown
+    parents: interface {{ mgmt_interface }}
+    match: line
+
+- name: Configure spine loopback interfaces
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - description {{ item.description }}
+      - ip address {{ item.ip_address }} {{ item.subnet_mask }}
+      - ip ospf area {{ ospf_area }}
+      - ip pim sparse-mode
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ spine_loopback_interfaces }}"
+  when: spine_loopback_interfaces is defined
+
+- name: Configure spine inter-spine links
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - description {{ item.description }}
+      - no switchport
+      - ip address {{ item.ip_address }} {{ item.subnet_mask }}
+      - ip ospf network point-to-point
+      - ip ospf area {{ ospf_area }}
+      - no shutdown
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ spine_inter_spine_links }}"
+  when: spine_inter_spine_links is defined
+
+- name: Configure spine as multicast rendezvous point
+  cisco.ios.ios_config:
+    lines:
+      - ip pim rp-address {{ spine_loopback_ip }}
+      - ip pim sparse-mode
+    match: line
+  when: multicast_rp_enabled | default(true) | bool

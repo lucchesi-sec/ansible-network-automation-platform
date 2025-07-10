@@ -1,0 +1,50 @@
+---
+# QoS Performance Tasks
+# Configures QoS performance optimization settings
+
+- name: Enable hardware QoS
+  cisco.ios.ios_config:
+    lines:
+      - mls qos
+    match: line
+  when: qos_performance.hardware_qos | bool
+
+- name: Configure QoS scheduling interval
+  cisco.ios.ios_config:
+    lines:
+      - mls qos scheduler-interval {{ qos_performance.qos_scheduling_interval }}
+    match: line
+
+- name: Configure QoS queue limits
+  cisco.ios.ios_config:
+    lines:
+      - mls qos queue-set output 1 threshold 1 {{ qos_performance.qos_queue_limit }} {{ qos_performance.qos_drop_threshold }} 100 {{ qos_performance.qos_buffer_limit }}
+    match: line
+
+- name: Configure QoS trust settings
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - mls qos trust {{ item.trust_mode }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ qos_trust_interfaces }}"
+  when: qos_trust_interfaces is defined
+
+- name: Configure QoS DSCP mappings
+  cisco.ios.ios_config:
+    lines:
+      - mls qos map dscp-cos {{ item.dscp }} to {{ item.cos }}
+    match: line
+  loop: "{{ qos_dscp_mappings }}"
+  when: qos_dscp_mappings is defined
+
+- name: Configure QoS output queues
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - wrr-queue bandwidth {{ item.queue_weights }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ qos_output_queues }}"
+  when: qos_output_queues is defined

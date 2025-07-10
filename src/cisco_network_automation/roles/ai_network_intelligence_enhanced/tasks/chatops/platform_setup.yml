@@ -1,0 +1,519 @@
+---
+# ChatOps Platform Setup
+# Integrates ML/AI platform with chat platforms for operations automation
+
+- name: Create ChatOps namespace
+  kubernetes.core.k8s:
+    name: "{{ ml_infrastructure.namespace }}-chatops"
+    api_version: v1
+    kind: Namespace
+    state: present
+  delegate_to: localhost
+  tags: [kubernetes, namespace]
+
+- name: Create ChatOps secrets
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: chatops-secrets
+        namespace: "{{ ml_infrastructure.namespace }}-chatops"
+      type: Opaque
+      data:
+        slack-bot-token: "{{ vault_slack_bot_token | b64encode }}"
+        slack-signing-secret: "{{ vault_slack_signing_secret | b64encode }}"
+        teams-app-id: "{{ vault_teams_app_id | default('') | b64encode }}"
+        teams-app-password: "{{ vault_teams_app_password | default('') | b64encode }}"
+        discord-bot-token: "{{ vault_discord_bot_token | default('') | b64encode }}"
+  delegate_to: localhost
+  tags: [kubernetes, secrets]
+
+- name: Deploy ChatOps gateway service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: chatops-gateway
+        namespace: "{{ ml_infrastructure.namespace }}-chatops"
+        labels:
+          app: chatops-gateway
+          component: gateway
+      spec:
+        replicas: 2
+        selector:
+          matchLabels:
+            app: chatops-gateway
+        template:
+          metadata:
+            labels:
+              app: chatops-gateway
+              component: gateway
+          spec:
+            containers:
+            - name: chatops-gateway
+              image: "{{ chatops_images.gateway | default('nginx:alpine') }}"
+              ports:
+              - containerPort: 8080
+                name: http
+              - containerPort: 8443
+                name: https
+              env:
+              - name: ENVIRONMENT
+                value: "{{ ml_infrastructure.environment }}"
+              - name: ML_API_ENDPOINT
+                value: "http://{{ serving_config.api_gateway.host }}:{{ serving_config.api_gateway.port }}"
+              - name: MLFLOW_ENDPOINT
+                value: "{{ ml_infrastructure.storage.model_registry.endpoint }}"
+              - name: PROMETHEUS_ENDPOINT
+                value: "{{ monitoring_config.prometheus.endpoint }}"
+              volumeMounts:
+              - name: chatops-config
+                mountPath: /etc/chatops
+              - name: ssl-certs
+                mountPath: /etc/ssl/certs
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+            volumes:
+            - name: chatops-config
+              configMap:
+                name: chatops-config
+            - name: ssl-certs
+              secret:
+                secretName: chatops-ssl-certs
+  delegate_to: localhost
+  tags: [kubernetes, chatops, gateway]
+
+- name: Deploy Slack bot service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: slack-bot
+        namespace: "{{ ml_infrastructure.namespace }}-chatops"
+        labels:
+          app: slack-bot
+          platform: slack
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: slack-bot
+        template:
+          metadata:
+            labels:
+              app: slack-bot
+              platform: slack
+          spec:
+            containers:
+            - name: slack-bot
+              image: "{{ chatops_images.slack_bot | default('python:3.9-slim') }}"
+              ports:
+              - containerPort: 3000
+              env:
+              - name: SLACK_BOT_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: chatops-secrets
+                    key: slack-bot-token
+              - name: SLACK_SIGNING_SECRET
+                valueFrom:
+                  secretKeyRef:
+                    name: chatops-secrets
+                    key: slack-signing-secret
+              - name: CHATOPS_GATEWAY_URL
+                value: "http://chatops-gateway.{{ ml_infrastructure.namespace }}-chatops.svc.cluster.local:8080"
+              - name: COMMAND_PREFIX
+                value: "{{ chatops_config.commands.prefix }}"
+              - name: COMMAND_TIMEOUT
+                value: "{{ chatops_config.commands.timeout }}"
+              volumeMounts:
+              - name: slack-bot-code
+                mountPath: /app
+              - name: command-definitions
+                mountPath: /app/commands
+              workingDir: /app
+              command: [python, main.py]
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "300m"
+                  memory: "256Mi"
+            volumes:
+            - name: slack-bot-code
+              configMap:
+                name: slack-bot-code
+            - name: command-definitions
+              configMap:
+                name: chatops-commands
+  when: chatops_config.platforms.slack.enabled
+  delegate_to: localhost
+  tags: [kubernetes, slack, bot]
+
+- name: Deploy Microsoft Teams bot service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: teams-bot
+        namespace: "{{ ml_infrastructure.namespace }}-chatops"
+        labels:
+          app: teams-bot
+          platform: teams
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: teams-bot
+        template:
+          metadata:
+            labels:
+              app: teams-bot
+              platform: teams
+          spec:
+            containers:
+            - name: teams-bot
+              image: "{{ chatops_images.teams_bot | default('node:16-alpine') }}"
+              ports:
+              - containerPort: 3978
+              env:
+              - name: TEAMS_APP_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: chatops-secrets
+                    key: teams-app-id
+              - name: TEAMS_APP_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: chatops-secrets
+                    key: teams-app-password
+              - name: CHATOPS_GATEWAY_URL
+                value: "http://chatops-gateway.{{ ml_infrastructure.namespace }}-chatops.svc.cluster.local:8080"
+              volumeMounts:
+              - name: teams-bot-code
+                mountPath: /app
+              workingDir: /app
+              command: [node, index.js]
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "300m"
+                  memory: "256Mi"
+            volumes:
+            - name: teams-bot-code
+              configMap:
+                name: teams-bot-code
+  when: chatops_config.platforms.microsoft_teams.enabled
+  delegate_to: localhost
+  tags: [kubernetes, teams, bot]
+
+- name: Create ChatOps configuration ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: chatops-config
+        namespace: "{{ ml_infrastructure.namespace }}-chatops"
+      data:
+        config.yaml: |
+          chatops:
+            environment: "{{ ml_infrastructure.environment }}"
+            command_prefix: "{{ chatops_config.commands.prefix }}"
+            command_timeout: {{ chatops_config.commands.timeout }}
+            
+            platforms:
+              slack:
+                enabled: {{ chatops_config.platforms.slack.enabled }}
+                channels: {{ chatops_config.platforms.slack.channels | to_json }}
+              teams:
+                enabled: {{ chatops_config.platforms.microsoft_teams.enabled }}
+              discord:
+                enabled: {{ chatops_config.platforms.discord.enabled }}
+            
+            permissions:
+              model_management: {{ chatops_config.commands.permissions.model_management | to_json }}
+              predictions: {{ chatops_config.commands.permissions.predictions | to_json }}
+              automation: {{ chatops_config.commands.permissions.automation | to_json }}
+            
+            integrations:
+              ml_api: "http://{{ serving_config.api_gateway.host }}:{{ serving_config.api_gateway.port }}"
+              mlflow: "{{ ml_infrastructure.storage.model_registry.endpoint }}"
+              prometheus: "{{ monitoring_config.prometheus.endpoint }}"
+              grafana: "{{ monitoring_config.grafana.endpoint }}"
+              airflow: "http://{{ automation_config.workflows.webserver_host }}:{{ automation_config.workflows.webserver_port }}"
+            
+            notifications:
+              anomaly_alerts: {{ chatops_config.notifications.anomaly_alerts }}
+              model_deployments: {{ chatops_config.notifications.model_deployments }}
+              automation_actions: {{ chatops_config.notifications.automation_actions }}
+              system_health: {{ chatops_config.notifications.system_health }}
+  delegate_to: localhost
+  tags: [kubernetes, configmap]
+
+- name: Create ChatOps command definitions
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: chatops-commands
+        namespace: "{{ ml_infrastructure.namespace }}-chatops"
+      data:
+        model_management.json: |
+          {
+            "commands": [
+              {
+                "name": "deploy",
+                "description": "Deploy ML model to production",
+                "syntax": "{{ chatops_config.commands.prefix }} deploy model <model_name> <version>",
+                "permissions": {{ chatops_config.commands.permissions.model_management | to_json }},
+                "endpoint": "/api/v1/models/{model_id}/deploy",
+                "method": "POST",
+                "parameters": [
+                  {"name": "model_name", "type": "string", "required": true},
+                  {"name": "version", "type": "string", "required": true},
+                  {"name": "environment", "type": "string", "default": "staging"}
+                ]
+              },
+              {
+                "name": "status",
+                "description": "Show model status and metrics",
+                "syntax": "{{ chatops_config.commands.prefix }} status models [model_name]",
+                "permissions": ["viewer", "operator", "admin"],
+                "endpoint": "/api/v1/models",
+                "method": "GET",
+                "parameters": [
+                  {"name": "model_name", "type": "string", "required": false}
+                ]
+              },
+              {
+                "name": "train",
+                "description": "Start model training",
+                "syntax": "{{ chatops_config.commands.prefix }} train <model_name> --dataset <dataset_name>",
+                "permissions": {{ chatops_config.commands.permissions.model_management | to_json }},
+                "endpoint": "/api/v1/models/{model_id}/train",
+                "method": "POST",
+                "parameters": [
+                  {"name": "model_name", "type": "string", "required": true},
+                  {"name": "dataset", "type": "string", "required": true}
+                ]
+              }
+            ]
+          }
+        
+        predictions.json: |
+          {
+            "commands": [
+              {
+                "name": "predict",
+                "description": "Make predictions using ML models",
+                "syntax": "{{ chatops_config.commands.prefix }} predict <type> --device <device_id> [--timeframe <timeframe>]",
+                "permissions": {{ chatops_config.commands.permissions.predictions | to_json }},
+                "endpoint": "/api/v1/predictions",
+                "method": "POST",
+                "parameters": [
+                  {"name": "type", "type": "string", "required": true, "options": ["traffic", "anomaly", "performance"]},
+                  {"name": "device", "type": "string", "required": true},
+                  {"name": "timeframe", "type": "string", "default": "1h"}
+                ]
+              },
+              {
+                "name": "analyze",
+                "description": "Analyze network anomalies",
+                "syntax": "{{ chatops_config.commands.prefix }} analyze anomalies --severity <level> [--last <timeframe>]",
+                "permissions": {{ chatops_config.commands.permissions.predictions | to_json }},
+                "endpoint": "/api/v1/anomalies",
+                "method": "GET",
+                "parameters": [
+                  {"name": "severity", "type": "string", "required": true, "options": ["low", "medium", "high", "critical"]},
+                  {"name": "last", "type": "string", "default": "24h"}
+                ]
+              }
+            ]
+          }
+        
+        automation.json: |
+          {
+            "commands": [
+              {
+                "name": "automate",
+                "description": "Control automation rules",
+                "syntax": "{{ chatops_config.commands.prefix }} automate <action> <rule_name> [--threshold <value>]",
+                "permissions": {{ chatops_config.commands.permissions.automation | to_json }},
+                "endpoint": "/api/v1/automation/rules",
+                "method": "POST",
+                "parameters": [
+                  {"name": "action", "type": "string", "required": true, "options": ["enable", "disable", "update"]},
+                  {"name": "rule_name", "type": "string", "required": true},
+                  {"name": "threshold", "type": "string", "required": false}
+                ]
+              },
+              {
+                "name": "workflow",
+                "description": "Execute automation workflows",
+                "syntax": "{{ chatops_config.commands.prefix }} workflow <action> <workflow_name> [--params <parameters>]",
+                "permissions": {{ chatops_config.commands.permissions.automation | to_json }},
+                "endpoint": "/api/v1/automation/workflows",
+                "method": "POST",
+                "parameters": [
+                  {"name": "action", "type": "string", "required": true, "options": ["run", "stop", "status"]},
+                  {"name": "workflow_name", "type": "string", "required": true},
+                  {"name": "params", "type": "object", "required": false}
+                ]
+              }
+            ]
+          }
+  delegate_to: localhost
+  tags: [kubernetes, configmap, commands]
+
+- name: Create Slack bot implementation
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: slack-bot-code
+        namespace: "{{ ml_infrastructure.namespace }}-chatops"
+      data:
+        main.py: |
+          {{ lookup('file', 'files/chatops/slack_bot/main.py') }}
+        command_handler.py: |
+          {{ lookup('file', 'files/chatops/slack_bot/command_handler.py') }}
+        ml_integration.py: |
+          {{ lookup('file', 'files/chatops/slack_bot/ml_integration.py') }}
+        requirements.txt: |
+          slack-bolt==1.18.0
+          requests==2.31.0
+          pyyaml==6.0.1
+          prometheus-client==0.17.1
+  when: chatops_config.platforms.slack.enabled
+  delegate_to: localhost
+  tags: [kubernetes, configmap, slack]
+
+- name: Create ChatOps services
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: "{{ item.name }}"
+        namespace: "{{ ml_infrastructure.namespace }}-chatops"
+        labels:
+          app: "{{ item.app }}"
+      spec:
+        selector:
+          app: "{{ item.app }}"
+        ports:
+        - port: "{{ item.port }}"
+          targetPort: "{{ item.port }}"
+        type: "{{ item.type | default('ClusterIP') }}"
+  loop:
+    - name: chatops-gateway-service
+      app: chatops-gateway
+      port: 8080
+      type: LoadBalancer
+    - name: slack-bot-service
+      app: slack-bot
+      port: 3000
+    - name: teams-bot-service
+      app: teams-bot
+      port: 3978
+  delegate_to: localhost
+  tags: [kubernetes, service]
+
+- name: Create ChatOps ingress
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: chatops-ingress
+        namespace: "{{ ml_infrastructure.namespace }}-chatops"
+        annotations:
+          nginx.ingress.kubernetes.io/rewrite-target: /
+          nginx.ingress.kubernetes.io/ssl-redirect: "true"
+          cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      spec:
+        tls:
+        - hosts:
+          - chatops.{{ ansible_domain | default('ai.local') }}
+          secretName: chatops-tls
+        rules:
+        - host: chatops.{{ ansible_domain | default('ai.local') }}
+          http:
+            paths:
+            - path: /
+              pathType: Prefix
+              backend:
+                service:
+                  name: chatops-gateway-service
+                  port:
+                    number: 8080
+  delegate_to: localhost
+  tags: [kubernetes, ingress]
+
+- name: Verify ChatOps deployment
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ ml_infrastructure.namespace }}-chatops"
+    label_selectors:
+      - app=chatops-gateway
+  register: chatops_pods
+  delegate_to: localhost
+  tags: [verification]
+
+- name: Display ChatOps setup status
+  debug:
+    msg: |
+      💬 ChatOps Platform Setup Status:
+      ✅ Gateway Service: {{ 'Running' if chatops_pods.resources | length > 0 else 'Pending' }}
+      ✅ Slack Integration: {{ 'Enabled' if chatops_config.platforms.slack.enabled else 'Disabled' }}
+      ✅ Teams Integration: {{ 'Enabled' if chatops_config.platforms.microsoft_teams.enabled else 'Disabled' }}
+      ✅ Discord Integration: {{ 'Enabled' if chatops_config.platforms.discord.enabled else 'Disabled' }}
+      
+      🔧 Available Commands:
+      {% for platform, config in chatops_config.platforms.items() %}
+      {% if config.enabled %}
+      {{ platform | title }}:
+      - {{ chatops_config.commands.prefix }} deploy model <name> <version>
+      - {{ chatops_config.commands.prefix }} status models [name]
+      - {{ chatops_config.commands.prefix }} predict traffic --device <id>
+      - {{ chatops_config.commands.prefix }} analyze anomalies --severity <level>
+      - {{ chatops_config.commands.prefix }} automate enable <rule>
+      - {{ chatops_config.commands.prefix }} workflow run <name>
+      {% endif %}
+      {% endfor %}
+      
+      🔗 Access Points:
+      - ChatOps Gateway: https://chatops.{{ ansible_domain | default('ai.local') }}
+      - Slack Channels: {{ chatops_config.platforms.slack.channels | join(', ') if chatops_config.platforms.slack.enabled else 'N/A' }}
+      
+      📋 Next Steps:
+      1. Configure webhook URLs in your chat platforms
+      2. Invite bots to appropriate channels
+      3. Test commands with {{ chatops_config.commands.prefix }} help
+      4. Set up notification routing
+  tags: [summary]

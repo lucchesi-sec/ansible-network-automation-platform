@@ -1,0 +1,77 @@
+---
+# Configure QoS Class Maps
+
+- name: Configure traffic class maps
+  ios_config:
+    lines:
+      - class-map match-any {{ item.name }}
+      - description {{ item.description }}
+      - match {{ item.match_criteria | join(' ') }}
+    parents: 
+      - "class-map match-any {{ item.name }}"
+  loop: "{{ default_class_maps }}"
+  register: class_map_result
+
+- name: Configure voice traffic class map with additional criteria
+  ios_config:
+    lines:
+      - class-map match-any VOICE_TRAFFIC
+      - match ip rtp 16384 16383
+      - match protocol rtp
+      - match ip precedence 5
+    parents: 
+      - "class-map match-any VOICE_TRAFFIC"
+  when: class_map_result.changed
+
+- name: Configure video traffic class map with additional criteria
+  ios_config:
+    lines:
+      - class-map match-any VIDEO_TRAFFIC
+      - match protocol rtcp
+      - match ip precedence 4
+      - match access-group name VIDEO_ACL
+    parents: 
+      - "class-map match-any VIDEO_TRAFFIC"
+  when: class_map_result.changed
+
+- name: Configure critical data class map with application matching
+  ios_config:
+    lines:
+      - class-map match-any CRITICAL_DATA
+      - match protocol http
+      - match protocol https
+      - match protocol citrix
+      - match protocol exchange
+    parents: 
+      - "class-map match-any CRITICAL_DATA"
+  when: class_map_result.changed
+
+- name: Configure bulk data class map with application matching
+  ios_config:
+    lines:
+      - class-map match-any BULK_DATA
+      - match protocol ftp
+      - match protocol smtp
+      - match protocol pop3
+      - match protocol imap
+    parents: 
+      - "class-map match-any BULK_DATA"
+  when: class_map_result.changed
+
+- name: Configure scavenger class map
+  ios_config:
+    lines:
+      - class-map match-any SCAVENGER
+      - match protocol peer-to-peer
+      - match protocol bittorrent
+      - match protocol kazaa
+      - match protocol gnutella
+    parents: 
+      - "class-map match-any SCAVENGER"
+  when: class_map_result.changed
+
+- name: Verify class map configuration
+  ios_command:
+    commands:
+      - show class-map
+  register: class_map_verification

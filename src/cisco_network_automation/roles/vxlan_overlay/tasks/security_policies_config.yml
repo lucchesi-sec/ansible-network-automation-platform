@@ -1,0 +1,54 @@
+---
+# VXLAN Security Policies Configuration Tasks
+# Configures security policies for VXLAN overlay
+
+- name: Configure VXLAN encryption policies
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ nve_interface }}
+      - member vni {{ item.vni }}
+      - encryption {{ item.encryption_type }}
+    parents: interface {{ nve_interface }}
+    match: line
+  loop: "{{ vxlan_encryption_policies }}"
+  when: vxlan_encryption_enabled | bool and vxlan_encryption_policies is defined
+
+- name: Configure VXLAN access control lists
+  cisco.ios.ios_config:
+    lines:
+      - ip access-list extended {{ item.acl_name }}
+      - "{{ item.ace }}"
+    match: line
+  loop: "{{ vxlan_security_acls }}"
+  when: vxlan_security_enabled | bool and vxlan_security_acls is defined
+
+- name: Apply security ACLs to VXLAN VLANs
+  cisco.ios.ios_config:
+    lines:
+      - interface vlan{{ item.vlan_id }}
+      - ip access-group {{ item.acl_name }} {{ item.direction }}
+    parents: interface vlan{{ item.vlan_id }}
+    match: line
+  loop: "{{ vxlan_vlan_acl_bindings }}"
+  when: vxlan_vlan_acl_bindings is defined
+
+- name: Configure VXLAN tenant isolation
+  cisco.ios.ios_config:
+    lines:
+      - vrf context {{ item.vrf_name }}
+      - description {{ item.description }}
+      - ip routing
+    match: line
+  loop: "{{ vxlan_tenant_isolation }}"
+  when: vxlan_tenant_isolation is defined
+
+- name: Configure VXLAN security group tags
+  cisco.ios.ios_config:
+    lines:
+      - interface vlan{{ item.vlan_id }}
+      - cts manual
+      - cts sgt {{ item.sgt }}
+    parents: interface vlan{{ item.vlan_id }}
+    match: line
+  loop: "{{ vxlan_security_group_tags }}"
+  when: vxlan_security_group_tags is defined

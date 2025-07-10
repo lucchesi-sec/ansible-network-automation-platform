@@ -1,0 +1,28 @@
+---
+# Micro-Segmentation Role - Main Tasks
+# Configures tenant isolation and security policies
+
+- name: Include micro-segmentation variables
+  include_vars: main.yml
+
+- name: Configure VRF instances for tenant isolation
+  include_tasks: vrf_isolation_config.yml
+
+- name: Configure security policies for micro-segmentation
+  include_tasks: security_policies_config.yml
+
+- name: Configure tenant network access controls
+  include_tasks: tenant_acl_config.yml
+
+- name: Configure micro-segmentation monitoring
+  include_tasks: monitoring_config.yml
+
+- name: Configure tenant traffic steering
+  include_tasks: traffic_steering_config.yml
+
+- name: Validate micro-segmentation deployment
+  include_tasks: validate_micro_segmentation.yml
+
+- name: Generate micro-segmentation documentation
+  include_tasks: generate_microseg_doc.yml
+  when: generate_documentation | default(true) | bool

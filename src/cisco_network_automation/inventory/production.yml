@@ -1,0 +1,131 @@
+---
+# Core Routing Infrastructure - Production Inventory
+# Enterprise-grade core routing with BGP and OSPF multi-area
+
+all:
+  children:
+    core_routers:
+      hosts:
+        core-rtr-01:
+          ansible_host: 10.0.1.10
+          router_id: 10.0.1.10
+          bgp_asn: 65001
+          ospf_area: 0
+          router_role: core
+          redundancy_group: primary
+        core-rtr-02:
+          ansible_host: 10.0.1.11
+          router_id: 10.0.1.11
+          bgp_asn: 65001
+          ospf_area: 0
+          router_role: core
+          redundancy_group: secondary
+        core-rtr-03:
+          ansible_host: 10.0.1.12
+          router_id: 10.0.1.12
+          bgp_asn: 65001
+          ospf_area: 0
+          router_role: core
+          redundancy_group: tertiary
+          
+    distribution_routers:
+      hosts:
+        dist-rtr-01:
+          ansible_host: 10.0.2.10
+          router_id: 10.0.2.10
+          bgp_asn: 65001
+          ospf_area: 1
+          router_role: distribution
+          region: north
+        dist-rtr-02:
+          ansible_host: 10.0.2.11
+          router_id: 10.0.2.11
+          bgp_asn: 65001
+          ospf_area: 1
+          router_role: distribution
+          region: south
+        dist-rtr-03:
+          ansible_host: 10.0.2.12
+          router_id: 10.0.2.12
+          bgp_asn: 65001
+          ospf_area: 2
+          router_role: distribution
+          region: east
+        dist-rtr-04:
+          ansible_host: 10.0.2.13
+          router_id: 10.0.2.13
+          bgp_asn: 65001
+          ospf_area: 2
+          router_role: distribution
+          region: west
+          
+    edge_routers:
+      hosts:
+        edge-rtr-01:
+          ansible_host: 10.0.3.10
+          router_id: 10.0.3.10
+          bgp_asn: 65001
+          ospf_area: 3
+          router_role: edge
+          external_asn: 65100
+          peer_type: customer
+        edge-rtr-02:
+          ansible_host: 10.0.3.11
+          router_id: 10.0.3.11
+          bgp_asn: 65001
+          ospf_area: 3
+          router_role: edge
+          external_asn: 65200
+          peer_type: provider
+        edge-rtr-03:
+          ansible_host: 10.0.3.12
+          router_id: 10.0.3.12
+          bgp_asn: 65001
+          ospf_area: 4
+          router_role: edge
+          external_asn: 65300
+          peer_type: peer
+          
+    route_reflectors:
+      hosts:
+        rr-01:
+          ansible_host: 10.0.4.10
+          router_id: 10.0.4.10
+          bgp_asn: 65001
+          ospf_area: 0
+          router_role: route_reflector
+          cluster_id: 10.0.4.10
+        rr-02:
+          ansible_host: 10.0.4.11
+          router_id: 10.0.4.11
+          bgp_asn: 65001
+          ospf_area: 0
+          router_role: route_reflector
+          cluster_id: 10.0.4.11
+
+    # Zero Trust Security Infrastructure
+    zero_trust_controllers:
+      hosts:
+        zt-ctrl-01:
+          ansible_host: 10.0.5.10
+          router_id: 10.0.5.10
+          device_role: zero_trust_controller
+          trust_zone: security
+          cluster_member: primary
+        zt-ctrl-02:
+          ansible_host: 10.0.5.11
+          router_id: 10.0.5.11
+          device_role: zero_trust_controller
+          trust_zone: security
+          cluster_member: secondary
+
+  vars:
+    ansible_connection: network_cli
+    ansible_network_os: ios
+    ansible_user: "{{ vault_cisco_username }}"
+    ansible_password: "{{ vault_cisco_password }}"
+    ansible_become: yes
+    ansible_become_method: enable
+    ansible_become_password: "{{ vault_cisco_enable_password }}"
+    ansible_python_interpreter: /usr/bin/python3
+EOF < /dev/null

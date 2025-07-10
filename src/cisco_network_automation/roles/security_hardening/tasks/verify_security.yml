@@ -1,0 +1,55 @@
+---
+# Security Verification Tasks
+# Verifies security configuration compliance
+
+- name: Verify SSH configuration
+  ios_command:
+    commands:
+      - show ip ssh
+  register: ssh_status
+  
+- name: Verify SSH version 2 only
+  assert:
+    that:
+      - "'SSH version 2.0' in ssh_status.stdout[0]"
+    fail_msg: "SSH version 2 is not properly configured"
+    success_msg: "SSH version 2 is properly configured"
+    
+- name: Verify password encryption
+  ios_command:
+    commands:
+      - show running-config | include service password-encryption
+  register: password_encryption
+  
+- name: Verify service password-encryption is enabled
+  assert:
+    that:
+      - "'service password-encryption' in password_encryption.stdout[0]"
+    fail_msg: "Password encryption is not enabled"
+    success_msg: "Password encryption is enabled"
+    
+- name: Verify unnecessary services are disabled
+  ios_command:
+    commands:
+      - show running-config | include no service
+  register: disabled_services
+  
+- name: Verify logging configuration
+  ios_command:
+    commands:
+      - show logging
+  register: logging_status
+  
+- name: Verify AAA configuration
+  ios_command:
+    commands:
+      - show running-config | include aaa
+  register: aaa_config
+  
+- name: Display security verification summary
+  debug:
+    msg:
+      - "SSH Status: {{ 'OK' if 'SSH version 2.0' in ssh_status.stdout[0] else 'FAIL' }}"
+      - "Password Encryption: {{ 'OK' if 'service password-encryption' in password_encryption.stdout[0] else 'FAIL' }}"
+      - "AAA Configuration: {{ 'OK' if 'aaa new-model' in aaa_config.stdout[0] else 'FAIL' }}"
+      - "Logging Buffer: {{ logging_status.stdout[0] | regex_search('Log Buffer \\((\\d+) bytes\\)', '\\1') }}"

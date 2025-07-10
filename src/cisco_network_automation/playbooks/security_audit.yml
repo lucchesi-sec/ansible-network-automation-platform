@@ -1,0 +1,77 @@
+---
+- name: "Security Audit - Enterprise Network Infrastructure"
+  hosts: localhost
+  gather_facts: true
+  vars:
+    audit_timestamp: "{{ ansible_date_time.epoch }}"
+    audit_report_dir: "{{ playbook_dir }}/../logs/security_audit_{{ audit_timestamp }}"
+    
+  tasks:
+    - name: Create security audit report directory
+      file:
+        path: "{{ audit_report_dir }}"
+        state: directory
+        mode: '0755'
+      tags: [security, audit]
+
+    - name: Initialize security audit report
+      copy:
+        content: |
+          ENTERPRISE NETWORK SECURITY AUDIT REPORT
+          Audit Date: {{ ansible_date_time.iso8601 }}
+          Audit ID: {{ audit_timestamp }}
+          Environment: {{ environment | default('undefined') }}
+        dest: "{{ audit_report_dir }}/security_audit_report.txt"
+        mode: '0644'
+      tags: [security, audit]
+
+    - name: Check vault file encryption status
+      stat:
+        path: "{{ playbook_dir }}/../group_vars/vault.yml"
+      register: vault_file_stat
+      tags: [security, vault]
+
+    - name: Validate vault encryption
+      shell: |
+        if grep -q "\$ANSIBLE_VAULT" "{{ playbook_dir }}/../group_vars/vault.yml"; then
+          echo "VAULT_ENCRYPTED: PASS"
+        else
+          echo "VAULT_ENCRYPTED: FAIL"
+        fi
+      register: vault_check
+      tags: [security, vault]
+
+    - name: Scan for hardcoded credentials
+      shell: |
+        find {{ playbook_dir }}/.. -type f \( -name "*.yml" -o -name "*.yaml" \) \
+        -not -path "*/vault/*" -not -path "*/logs/*" | \
+        xargs grep -l "password.*:" | \
+        grep -v vault_ || echo "No hardcoded passwords found"
+      register: credential_scan
+      tags: [security, credentials]
+
+    - name: Run ansible-lint security validation
+      shell: |
+        cd {{ playbook_dir }}/..
+        ansible-lint --profile production . || true
+      register: lint_results
+      ignore_errors: true
+      tags: [security, lint]
+
+    - name: Generate security summary report
+      copy:
+        content: |
+          SECURITY AUDIT SUMMARY
+          Vault Status: {{ vault_check.stdout }}
+          Credential Scan: {{ credential_scan.stdout }}
+          Audit completed: {{ ansible_date_time.iso8601 }}
+        dest: "{{ audit_report_dir }}/security_summary.txt"
+      tags: [security, summary]
+
+    - name: Display audit results
+      debug:
+        msg: |
+          Security audit completed!
+          Reports: {{ audit_report_dir }}
+          Vault Status: {{ vault_check.stdout }}
+      tags: [security, completion]

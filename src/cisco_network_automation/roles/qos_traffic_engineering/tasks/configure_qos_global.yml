@@ -1,0 +1,79 @@
+---
+# Configure QoS Global Settings
+
+- name: Enable QoS globally
+  ios_config:
+    lines:
+      - qos
+  register: qos_global_result
+
+- name: Configure QoS global settings
+  ios_config:
+    lines:
+      - qos preserve-dscp
+      - qos policy-map stats
+      - qos prec-to-dscp-map default
+      - qos dscp-to-exp-map default
+  when: qos_global_result.changed
+
+- name: Configure QoS buffer settings
+  ios_config:
+    lines:
+      - qos queue-soft-max-threshold 100
+      - qos queue-limit 2048
+  when: 
+    - qos_global_result.changed
+    - "'core_routers' in group_names or 'wan_routers' in group_names"
+
+- name: Configure QoS congestion avoidance
+  ios_config:
+    lines:
+      - qos random-detect
+      - qos random-detect dscp-based
+      - qos random-detect exponential-weighting-constant 9
+  when: 
+    - qos_global_result.changed
+    - "'core_routers' in group_names or 'distribution_switches' in group_names"
+
+- name: Configure QoS scheduler settings
+  ios_config:
+    lines:
+      - qos scheduler-allocation 16000
+      - qos scheduler-interval 125
+  when: 
+    - qos_global_result.changed
+    - "'core_routers' in group_names"
+
+- name: Configure QoS marking policies
+  ios_config:
+    lines:
+      - qos map dscp {{ item.dscp }} to exp {{ item.exp }}
+  loop:
+    - { dscp: 'ef', exp: 5 }
+    - { dscp: 'af41', exp: 4 }
+    - { dscp: 'af31', exp: 3 }
+    - { dscp: 'af21', exp: 2 }
+    - { dscp: 'af11', exp: 1 }
+    - { dscp: 'cs1', exp: 1 }
+    - { dscp: 'default', exp: 0 }
+  when: 
+    - qos_global_result.changed
+    - mpls_enabled | bool
+
+- name: Configure QoS trust boundary
+  ios_config:
+    lines:
+      - qos trust dscp
+      - qos trust cos
+  when: 
+    - qos_global_result.changed
+    - "'distribution_switches' in group_names or 'access_switches' in group_names"
+
+- name: Save QoS global configuration
+  ios_config:
+    save_when: modified
+  when: qos_global_result.changed
+
+- name: Display QoS global configuration status
+  debug:
+    msg: "QoS Global Configuration Status - QoS Enabled: {{ qos_global_result.changed }}"

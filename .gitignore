@@ -21,9 +21,18 @@ env/
 .DS_Store
 Thumbs.db
 
-# Vault files (uncomment if using separate vault files)
-# vault/*.yml
-# **/vault.yml
+# Ansible Vault password files - CRITICAL: Never commit these
+.vault_password*
+.vault_pass*
+vault_pass*
+
+# Decrypted vault files (temporary)
+vault/*.yml.decrypted
+vault/*.yaml.decrypted
+
+# Ansible vault temporary files
+.vault_*
+*vault_pass*
 
 # Molecule
 .molecule/
@@ -46,3 +55,10 @@ Thumbs.db
 
 # Local testing
 test_output/
+*.local.md
+
+# Archive consolidated backups - do not commit to version control
+archive_consolidated/
+
+# Implementation history archives - documentation cleanup artifacts
+src/cisco_network_automation/archive/

@@ -1,0 +1,79 @@
+---
+# Cisco Automation Controller - Central orchestration for network automation
+# This role deploys and configures the central automation controller for network-wide orchestration
+
+- name: Deploy automation controller configuration
+  cisco.ios.ios_config:
+    lines:
+      - automation controller enable
+      - automation controller ip {{ automation_controller_ip }}
+      - automation controller port {{ automation_controller_port }}
+      - automation controller username {{ automation_controller_username }}
+      - automation controller password {{ automation_controller_password }}
+      - automation controller timeout {{ automation_controller_timeout }}
+    parents: configure terminal
+  notify: restart automation services
+
+- name: Configure automation policies
+  cisco.ios.ios_config:
+    lines:
+      - automation policy {{ item.name }}
+      - description {{ item.description }}
+      - trigger {{ item.trigger }}
+      - action {{ item.action }}
+      - severity {{ item.severity }}
+      - notification {{ item.notification }}
+    parents: configure terminal
+  loop: "{{ automation_policies }}"
+  notify: reload automation policies
+
+- name: Enable automation event logging
+  cisco.ios.ios_config:
+    lines:
+      - logging automation enable
+      - logging automation level {{ automation_log_level }}
+      - logging automation facility {{ automation_log_facility }}
+      - logging automation buffer {{ automation_log_buffer_size }}
+    parents: configure terminal
+
+- name: Configure automation API access
+  cisco.ios.ios_config:
+    lines:
+      - automation api enable
+      - automation api authentication {{ automation_api_auth }}
+      - automation api ssl certificate {{ automation_api_ssl_cert }}
+      - automation api ssl key {{ automation_api_ssl_key }}
+      - automation api access-list {{ automation_api_acl }}
+    parents: configure terminal
+
+- name: Deploy automation scripts
+  cisco.ios.ios_config:
+    lines:
+      - automation script {{ item.name }}
+      - language {{ item.language }}
+      - source {{ item.source }}
+      - parameters {{ item.parameters }}
+      - execution-mode {{ item.execution_mode }}
+    parents: configure terminal
+  loop: "{{ automation_scripts }}"
+
+- name: Configure automation telemetry
+  cisco.ios.ios_config:
+    lines:
+      - automation telemetry enable
+      - automation telemetry collector {{ automation_telemetry_collector }}
+      - automation telemetry interval {{ automation_telemetry_interval }}
+      - automation telemetry format {{ automation_telemetry_format }}
+    parents: configure terminal
+
+- name: Verify automation controller status
+  cisco.ios.ios_command:
+    commands:
+      - show automation controller status
+      - show automation policies
+      - show automation events
+  register: automation_status
+
+- name: Display automation controller status
+  debug:
+    var: automation_status.stdout_lines

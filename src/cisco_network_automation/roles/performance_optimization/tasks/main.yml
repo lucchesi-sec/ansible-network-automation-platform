@@ -1,0 +1,40 @@
+---
+# Performance Optimization Role - Main Tasks
+# Configures performance optimization settings for network devices
+
+- name: Include performance optimization variables
+  include_vars: main.yml
+
+- name: Configure CPU optimization settings
+  include_tasks: cpu_optimization.yml
+  when: cpu_optimization_enabled | bool
+
+- name: Configure memory optimization settings
+  include_tasks: memory_optimization.yml
+  when: memory_optimization_enabled | bool
+
+- name: Configure interface optimization settings
+  include_tasks: interface_optimization.yml
+  when: interface_optimization_enabled | bool
+
+- name: Configure TCP optimization settings
+  include_tasks: tcp_optimization.yml
+
+- name: Configure hardware optimization settings
+  include_tasks: hardware_optimization.yml
+
+- name: Configure QoS performance settings
+  include_tasks: qos_performance.yml
+
+- name: Configure performance monitoring
+  include_tasks: performance_monitoring.yml
+
+- name: Apply performance tuning profiles
+  include_tasks: performance_profiles.yml
+
+- name: Validate performance optimization
+  include_tasks: validate_performance.yml
+
+- name: Generate performance documentation
+  include_tasks: generate_performance_doc.yml
+  when: generate_documentation | default(true) | bool

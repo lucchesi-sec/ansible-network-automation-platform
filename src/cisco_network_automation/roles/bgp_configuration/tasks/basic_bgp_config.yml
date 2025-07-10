@@ -1,0 +1,60 @@
+---
+# Basic BGP Configuration Tasks
+# Core BGP routing protocol setup
+
+- name: Configure BGP router process
+  ios_config:
+    lines:
+      - router bgp {{ bgp_asn }}
+      - bgp router-id {{ router_id }}
+      - bgp log-neighbor-changes
+      - "{% if not bgp_synchronization %}no synchronization{% endif %}"
+      - "{% if not bgp_auto_summary %}no auto-summary{% endif %}"
+    parents: []
+
+- name: Configure BGP timers
+  ios_config:
+    lines:
+      - timers bgp {{ bgp_keepalive }} {{ bgp_holdtime }}
+    parents: 
+      - router bgp {{ bgp_asn }}
+
+- name: Configure BGP route dampening
+  ios_config:
+    lines:
+      - bgp dampening {{ bgp_route_dampening.half_life }} {{ bgp_route_dampening.reuse_limit }} {{ bgp_route_dampening.suppress_limit }} {{ bgp_route_dampening.max_suppress_time }}
+    parents: 
+      - router bgp {{ bgp_asn }}
+  when: bgp_route_dampening.enabled | default(false)
+
+- name: Configure BGP graceful restart
+  ios_config:
+    lines:
+      - bgp graceful-restart restart-time {{ bgp_graceful_restart.restart_time }}
+      - bgp graceful-restart stalepath-time {{ bgp_graceful_restart.stalepath_time }}
+    parents: 
+      - router bgp {{ bgp_asn }}
+  when: bgp_graceful_restart.enabled | default(false)
+
+- name: Configure BGP maximum paths
+  ios_config:
+    lines:
+      - maximum-paths {{ bgp_maximum_paths.ebgp }}
+      - maximum-paths ibgp {{ bgp_maximum_paths.ibgp }}
+    parents: 
+      - router bgp {{ bgp_asn }}
+
+- name: Configure BGP enhanced error handling
+  ios_config:
+    lines:
+      - bgp enhanced-error
+    parents: 
+      - router bgp {{ bgp_asn }}
+  when: bgp_enhanced_error | default(false)
+
+- name: Display BGP basic configuration completion
+  debug:
+    msg:
+      - "BGP basic configuration completed for {{ inventory_hostname }}"
+      - "BGP ASN: {{ bgp_asn }}"
+      - "Router ID: {{ router_id }}"

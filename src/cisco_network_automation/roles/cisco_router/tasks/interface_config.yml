@@ -1,0 +1,49 @@
+---
+# Interface Configuration Tasks
+# Configures WAN and LAN interfaces for internet connectivity
+
+- name: Configure WAN interface
+  ios_config:
+    lines:
+      - description "WAN Interface - Internet Connection"
+      - ip address dhcp
+      - ip nat outside
+      - ip virtual-reassembly
+      - duplex auto
+      - speed auto
+      - no shutdown
+    parents: interface {{ wan_interface }}
+  when: wan_dhcp | default(true)
+  
+- name: Configure WAN interface with static IP
+  ios_config:
+    lines:
+      - description "WAN Interface - Internet Connection"
+      - ip address {{ wan_ip }} {{ wan_netmask }}
+      - ip nat outside
+      - ip virtual-reassembly
+      - duplex auto
+      - speed auto
+      - no shutdown
+    parents: interface {{ wan_interface }}
+  when: not (wan_dhcp | default(true)) and wan_ip is defined
+  
+- name: Configure LAN interface
+  ios_config:
+    lines:
+      - description "LAN Interface - Internal Network"
+      - ip address {{ lan_ip }} {{ lan_netmask }}
+      - ip nat inside
+      - ip virtual-reassembly
+      - duplex auto
+      - speed auto
+      - no shutdown
+    parents: interface {{ lan_interface }}
+    
+- name: Configure loopback interface
+  ios_config:
+    lines:
+      - description "Loopback Interface - Management"
+      - ip address {{ loopback_ip }} {{ loopback_netmask }}
+    parents: interface {{ loopback_interface }}
+  when: loopback_interface is defined

@@ -1,0 +1,52 @@
+---
+# Rate Limiting Tasks
+# Configures rate limiting policies
+
+- name: Configure rate limiting access lists
+  cisco.ios.ios_config:
+    lines:
+      - ip access-list extended {{ item.acl_name }}
+      - permit {{ item.protocol }} {{ item.source }} {{ item.destination }}
+    match: line
+  loop: "{{ rate_limit_acls }}"
+  when: rate_limit_acls is defined
+
+- name: Configure rate limiting policies
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - police {{ item.rate }} {{ item.burst }} {{ item.exceed_action }}
+    match: line
+  loop: "{{ rate_limit_policies }}"
+  when: rate_limit_policies is defined
+
+- name: Configure two-rate three-color policers
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - police cir {{ item.cir }} bc {{ item.bc }} pir {{ item.pir }} be {{ item.be }} conform-action {{ item.conform_action }} exceed-action {{ item.exceed_action }} violate-action {{ item.violate_action }}
+    match: line
+  loop: "{{ two_rate_policers }}"
+  when: two_rate_policers is defined
+
+- name: Configure interface rate limiting
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - rate-limit input {{ item.rate }} {{ item.burst_normal }} {{ item.burst_max }} conform-action {{ item.conform_action }} exceed-action {{ item.exceed_action }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ interface_rate_limits }}"
+  when: interface_rate_limits is defined
+
+- name: Configure CAR (Committed Access Rate)
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - rate-limit input access-group {{ item.acl_number }} {{ item.rate }} {{ item.burst_normal }} {{ item.burst_max }} conform-action {{ item.conform_action }} exceed-action {{ item.exceed_action }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ car_configurations }}"
+  when: car_configurations is defined

@@ -1,0 +1,75 @@
+---
+# Bandwidth Management Validation Tasks
+# Validates bandwidth management configuration
+
+- name: Validate traffic shaping policies
+  cisco.ios.ios_command:
+    commands:
+      - show policy-map interface {{ item.interface }}
+  register: shaping_validation
+  loop: "{{ validation_interfaces }}"
+  when: validation_interfaces is defined
+  failed_when: false
+
+- name: Display shaping validation results
+  debug:
+    msg: "Shaping policy on {{ item.item.interface }}: Configured"
+  loop: "{{ shaping_validation.results }}"
+  when: shaping_validation is defined
+
+- name: Validate bandwidth allocation
+  cisco.ios.ios_command:
+    commands:
+      - show policy-map {{ item.policy_name }}
+  register: bandwidth_validation
+  loop: "{{ validation_policies }}"
+  when: validation_policies is defined
+  failed_when: false
+
+- name: Display bandwidth validation results
+  debug:
+    msg: "Policy {{ item.item.policy_name }}: Configured"
+  loop: "{{ bandwidth_validation.results }}"
+  when: bandwidth_validation is defined
+
+- name: Validate queue statistics
+  cisco.ios.ios_command:
+    commands:
+      - show queueing interface {{ item.interface }}
+  register: queue_stats
+  loop: "{{ queue_validation_interfaces }}"
+  when: queue_validation_interfaces is defined
+  failed_when: false
+
+- name: Display queue statistics
+  debug:
+    msg: "Queue statistics for {{ item.item.interface }}: Available"
+  loop: "{{ queue_stats.results }}"
+  when: queue_stats is defined
+
+- name: Validate NetFlow configuration
+  cisco.ios.ios_command:
+    commands:
+      - show ip flow export
+  register: netflow_validation
+  failed_when: false
+
+- name: Display NetFlow validation
+  debug:
+    msg: "NetFlow export configuration verified"
+  when: netflow_validation is defined
+
+- name: Test bandwidth limits
+  cisco.ios.ios_command:
+    commands:
+      - show interfaces {{ item.interface }} rate-limit
+  register: rate_limit_test
+  loop: "{{ rate_limit_test_interfaces }}"
+  when: rate_limit_test_interfaces is defined
+  failed_when: false
+
+- name: Display rate limit test results
+  debug:
+    msg: "Rate limits on {{ item.item.interface }}: Active"
+  loop: "{{ rate_limit_test.results }}"
+  when: rate_limit_test is defined

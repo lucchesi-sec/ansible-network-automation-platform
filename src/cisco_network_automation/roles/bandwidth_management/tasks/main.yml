@@ -1,0 +1,31 @@
+---
+# Bandwidth Management Role - Main Tasks
+# Configures bandwidth management and traffic shaping
+
+- name: Include bandwidth management variables
+  include_vars: main.yml
+
+- name: Configure traffic shaping policies
+  include_tasks: traffic_shaping.yml
+
+- name: Configure bandwidth allocation
+  include_tasks: bandwidth_allocation.yml
+
+- name: Configure rate limiting
+  include_tasks: rate_limiting.yml
+
+- name: Configure traffic policing
+  include_tasks: traffic_policing.yml
+
+- name: Configure congestion management
+  include_tasks: congestion_management.yml
+
+- name: Configure bandwidth monitoring
+  include_tasks: bandwidth_monitoring.yml
+
+- name: Validate bandwidth management
+  include_tasks: validate_bandwidth.yml
+
+- name: Generate bandwidth documentation
+  include_tasks: generate_bandwidth_doc.yml
+  when: generate_documentation | default(true) | bool

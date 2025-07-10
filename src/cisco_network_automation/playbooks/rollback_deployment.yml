@@ -1,0 +1,238 @@
+---
+# Emergency Rollback Deployment Playbook
+# Restores previous configurations in case of deployment failure
+
+- name: Rollback Deployment - Initialize
+  hosts: localhost
+  gather_facts: no
+  vars:
+    deployment_id: "{{ deployment_id | default('emergency_rollback') }}"
+    rollback_timestamp: "{{ ansible_date_time.epoch }}"
+    rollback_reason: "{{ rollback_reason | default('Emergency rollback requested') }}"
+    backup_path: "{{ backup_path | default(playbook_dir + '/../logs') }}"
+    
+  tasks:
+    - name: Display rollback information
+      debug:
+        msg:
+          - "=== EMERGENCY ROLLBACK DEPLOYMENT ==="
+          - "Deployment ID: {{ deployment_id }}"
+          - "Rollback Reason: {{ rollback_reason }}"
+          - "Rollback Timestamp: {{ rollback_timestamp }}"
+          - "Backup Path: {{ backup_path }}"
+          - "Total devices to rollback: {{ groups['all'] | length }}"
+          - "========================================"
+          
+    - name: Validate backup path exists
+      stat:
+        path: "{{ backup_path }}"
+      register: backup_dir_check
+      
+    - name: Fail if backup path doesn't exist
+      fail:
+        msg: "Backup path {{ backup_path }} does not exist. Cannot proceed with rollback."
+      when: not backup_dir_check.stat.exists
+      
+    - name: Create rollback tracking directory
+      file:
+        path: "{{ backup_path }}/rollback_{{ rollback_timestamp }}"
+        state: directory
+        mode: '0755'
+        
+    - name: Initialize rollback tracking
+      copy:
+        content: |
+          === EMERGENCY ROLLBACK TRACKING ===
+          Deployment ID: {{ deployment_id }}
+          Rollback Reason: {{ rollback_reason }}
+          Rollback Started: {{ ansible_date_time.iso8601 }}
+          Rollback Timestamp: {{ rollback_timestamp }}
+          Total Devices: {{ groups['all'] | length }}
+          Backup Path: {{ backup_path }}
+          
+          === ROLLBACK STATUS ===
+          Configuration restoration - IN PROGRESS
+          Service verification - PENDING
+          Rollback validation - PENDING
+          
+        dest: "{{ backup_path }}/rollback_{{ rollback_timestamp }}/rollback_tracking.txt"
+        mode: '0644'
+
+- name: Rollback Device Configurations
+  hosts: all
+  gather_facts: no
+  serial: 1
+  vars:
+    backup_path: "{{ hostvars['localhost']['backup_path'] }}"
+    rollback_timestamp: "{{ hostvars['localhost']['rollback_timestamp'] }}"
+    deployment_id: "{{ hostvars['localhost']['deployment_id'] }}"
+    
+  tasks:
+    - name: Find available backup files for device
+      find:
+        paths: "{{ backup_path }}"
+        patterns: "{{ inventory_hostname }}_running_*.cfg"
+        recurse: yes
+      delegate_to: localhost
+      register: backup_files
+      
+    - name: Fail if no backup found
+      fail:
+        msg: "No backup configuration found for {{ inventory_hostname }}"
+      when: backup_files.files | length == 0
+      
+    - name: Get latest backup file
+      set_fact:
+        latest_backup: "{{ backup_files.files | sort(attribute='mtime') | last }}"
+        
+    - name: Display backup file being used
+      debug:
+        msg: "Restoring {{ inventory_hostname }} from backup: {{ latest_backup.path }}"
+        
+    - name: Read backup configuration
+      slurp:
+        src: "{{ latest_backup.path }}"
+      delegate_to: localhost
+      register: backup_config
+      
+    - name: Create current config backup before rollback
+      ios_config:
+        backup: yes
+        backup_options:
+          filename: "{{ inventory_hostname }}_pre_rollback_{{ rollback_timestamp }}.cfg"
+          dir_path: "{{ backup_path }}/rollback_{{ rollback_timestamp }}"
+      register: pre_rollback_backup
+      
+    - name: Apply rollback configuration
+      ios_config:
+        src: "{{ latest_backup.path }}"
+        replace: config
+        match: none
+      register: rollback_result
+      
+    - name: Save configuration after rollback
+      ios_config:
+        save_when: always
+        
+    - name: Verify device is responsive after rollback
+      ios_command:
+        commands:
+          - show version
+      register: post_rollback_check
+      
+    - name: Log rollback results
+      copy:
+        content: |
+          Device: {{ inventory_hostname }}
+          IP: {{ ansible_host }}
+          Group: {{ group_names | join(', ') }}
+          Rollback Timestamp: {{ rollback_timestamp }}
+          Rollback Date: {{ ansible_date_time.iso8601 }}
+          
+          === ROLLBACK DETAILS ===
+          Backup File Used: {{ latest_backup.path }}
+          Pre-rollback Backup: {{ pre_rollback_backup.backup_path | default('Failed to create') }}
+          Rollback Status: {{ 'SUCCESS' if rollback_result is success else 'FAILED' }}
+          Device Responsive: {{ 'YES' if post_rollback_check is success else 'NO' }}
+          
+          === POST-ROLLBACK VERIFICATION ===
+          {{ post_rollback_check.stdout[0] | default('Verification failed') }}
+          
+        dest: "{{ backup_path }}/rollback_{{ rollback_timestamp }}/{{ inventory_hostname }}_rollback_log.txt"
+      delegate_to: localhost
+
+- name: Rollback Validation
+  hosts: all
+  gather_facts: no
+  serial: 5
+  vars:
+    backup_path: "{{ hostvars['localhost']['backup_path'] }}"
+    rollback_timestamp: "{{ hostvars['localhost']['rollback_timestamp'] }}"
+    
+  tasks:
+    - name: Test device connectivity after rollback
+      ios_ping:
+        dest: "{{ ansible_host }}"
+        count: 3
+      delegate_to: localhost
+      register: connectivity_test
+      
+    - name: Verify basic services after rollback
+      ios_command:
+        commands:
+          - show ip interface brief
+          - show ip route summary
+        ignore_errors: yes
+      register: service_check
+      
+    - name: Log validation results
+      copy:
+        content: |
+          Device: {{ inventory_hostname }}
+          Rollback Validation: {{ ansible_date_time.iso8601 }}
+          
+          === CONNECTIVITY TEST ===
+          Status: {{ 'PASSED' if connectivity_test is success else 'FAILED' }}
+          
+          === SERVICE VERIFICATION ===
+          Interface Status: {{ 'AVAILABLE' if service_check.stdout[0] is defined else 'FAILED' }}
+          Routing Status: {{ 'AVAILABLE' if service_check.stdout[1] is defined else 'FAILED' }}
+          
+          === OVERALL ROLLBACK STATUS ===
+          Device Rollback: {{ 'SUCCESS' if connectivity_test is success and service_check is success else 'FAILED' }}
+          
+        dest: "{{ backup_path }}/rollback_{{ rollback_timestamp }}/{{ inventory_hostname }}_validation.txt"
+      delegate_to: localhost
+
+- name: Rollback Completion Summary
+  hosts: localhost
+  gather_facts: no
+  vars:
+    backup_path: "{{ backup_path }}"
+    rollback_timestamp: "{{ rollback_timestamp }}"
+    deployment_id: "{{ deployment_id }}"
+    rollback_reason: "{{ rollback_reason }}"
+    
+  tasks:
+    - name: Generate rollback completion report
+      copy:
+        content: |
+          === EMERGENCY ROLLBACK COMPLETE ===
+          Deployment ID: {{ deployment_id }}
+          Rollback Reason: {{ rollback_reason }}
+          Rollback Timestamp: {{ rollback_timestamp }}
+          Completed: {{ ansible_date_time.iso8601 }}
+          
+          === ROLLBACK SUMMARY ===
+          Total devices rolled back: {{ groups['all'] | length }}
+          Rollback method: Configuration replacement from backup
+          Pre-rollback configs saved: YES
+          Post-rollback validation: COMPLETED
+          
+          === ROLLBACK ARTIFACTS ===
+          Rollback logs: {{ backup_path }}/rollback_{{ rollback_timestamp }}/
+          Pre-rollback backups: {{ backup_path }}/rollback_{{ rollback_timestamp }}/*_pre_rollback_*.cfg
+          Validation reports: {{ backup_path }}/rollback_{{ rollback_timestamp }}/*_validation.txt
+          
+          === RECOMMENDATIONS ===
+          1. Review rollback logs for any failed devices
+          2. Verify network connectivity and services
+          3. Investigate root cause of original deployment failure
+          4. Plan corrective actions before next deployment attempt
+          
+          === STATUS ===
+          Emergency rollback: COMPLETED
+          System status: RESTORED TO PREVIOUS STATE
+          
+        dest: "{{ backup_path }}/rollback_{{ rollback_timestamp }}/rollback_summary.txt"
+        mode: '0644'
+        
+    - name: Display rollback completion
+      debug:
+        msg:
+          - "=== EMERGENCY ROLLBACK COMPLETE ==="
+          - "Total devices rolled back: {{ groups['all'] | length }}"
+          - "Rollback artifacts: {{ backup_path }}/rollback_{{ rollback_timestamp }}/"
+          - "Status: SYSTEM RESTORED TO PREVIOUS STATE"
+          - "Next steps: Review logs and investigate root cause"
+EOF < /dev/null

@@ -1,0 +1,58 @@
+---
+# Interface Optimization Tasks
+# Configures interface optimization settings
+
+- name: Configure interface buffer settings
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - tx-ring-limit {{ interface_optimization.tx_ring_limit }}
+      - hold-queue {{ interface_optimization.hold_queue_in }} in
+      - hold-queue {{ interface_optimization.hold_queue_out }} out
+      - carrier-delay {{ interface_optimization.carrier_delay }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ optimized_interfaces }}"
+  when: optimized_interfaces is defined
+
+- name: Configure interface dampening
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - dampening
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ dampening_interfaces }}"
+  when: interface_optimization.interface_dampening | bool and dampening_interfaces is defined
+
+- name: Configure interrupt throttling
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - load-interval 30
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ high_traffic_interfaces }}"
+  when: high_traffic_interfaces is defined
+
+- name: Configure interface queuing
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - fair-queue
+      - custom-queue-list 1
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ custom_queue_interfaces }}"
+  when: custom_queue_interfaces is defined
+
+- name: Configure flow control
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - flowcontrol receive on
+      - flowcontrol send on
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ flow_control_interfaces }}"
+  when: flow_control_interfaces is defined

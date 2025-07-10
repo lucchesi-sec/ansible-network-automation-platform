@@ -1,0 +1,54 @@
+---
+# Basic Router Configuration Tasks
+# Configures hostname, domain, and fundamental router settings
+
+- name: Configure hostname
+  ios_config:
+    lines:
+      - hostname {{ inventory_hostname }}
+      
+- name: Configure domain settings
+  ios_config:
+    lines:
+      - ip domain-name {{ domain_name }}
+      - ip domain-lookup
+      
+- name: Configure DNS servers
+  ios_config:
+    lines:
+      - ip name-server {{ item }}
+  loop: "{{ dns_servers }}"
+  
+- name: Configure NTP servers
+  ios_config:
+    lines:
+      - ntp server {{ item }}
+  loop: "{{ ntp_servers }}"
+  
+- name: Configure timezone
+  ios_config:
+    lines:
+      - clock timezone {{ timezone_name }} {{ timezone_offset }}
+      
+- name: Configure logging
+  ios_config:
+    lines:
+      - logging buffered {{ log_buffer_size }}
+      - logging console warnings
+      - logging monitor warnings
+      - service timestamps log datetime msec localtime
+      - service timestamps debug datetime msec localtime
+      
+- name: Configure service settings
+  ios_config:
+    lines:
+      - service password-encryption
+      - service tcp-keepalives-in
+      - service tcp-keepalives-out
+      - no service pad
+      - no service finger
+      - no service udp-small-servers
+      - no service tcp-small-servers
+      - ip cef
+      - ip subnet-zero
+      - ip classless

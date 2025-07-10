@@ -1,0 +1,49 @@
+---
+# Security Hardening Handlers
+# Event-driven tasks for security configuration changes
+
+- name: save security config
+  ios_config:
+    save_when: modified
+  listen: "save security config"
+
+- name: regenerate ssh keys
+  ios_config:
+    lines:
+      - crypto key generate rsa modulus {{ rsa_key_size }}
+    timeout: 60
+  listen: "regenerate ssh keys"
+
+- name: restart ssh service
+  ios_config:
+    lines:
+      - no ip ssh
+      - ip ssh
+  listen: "restart ssh"
+
+- name: reload line configurations
+  ios_config:
+    lines:
+      - exec-timeout {{ exec_timeout }}
+    parents:
+      - line {{ item }}
+  loop: "{{ line_types }}"
+  listen: "reload line config"
+
+- name: backup security config
+  ios_config:
+    backup: yes
+    backup_options:
+      filename: "{{ inventory_hostname }}_security_{{ ansible_date_time.epoch }}.cfg"
+      dir_path: "{{ playbook_dir }}/backups/"
+  delegate_to: localhost
+  listen: "backup security config"
+
+- name: verify security settings
+  ios_command:
+    commands:
+      - show running-config | include username
+      - show ip ssh
+      - show line
+  register: security_verification
+  listen: "verify security"

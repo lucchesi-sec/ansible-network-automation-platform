@@ -1,0 +1,63 @@
+---
+# Performance Monitoring Tasks
+# Configures performance monitoring settings
+
+- name: Configure CPU threshold monitoring
+  cisco.ios.ios_config:
+    lines:
+      - process cpu threshold type total rising {{ performance_monitoring.cpu_threshold_major }} interval 5
+      - process cpu threshold type total falling {{ performance_monitoring.cpu_threshold_minor }} interval 5
+      - snmp-server enable traps cpu threshold
+    match: line
+
+- name: Configure memory threshold monitoring
+  cisco.ios.ios_config:
+    lines:
+      - memory free low-watermark processor {{ performance_monitoring.memory_threshold_major }}
+      - snmp-server enable traps memory bufferpeak
+    match: line
+
+- name: Configure interface utilization monitoring
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - load-interval 30
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ monitored_interfaces }}"
+  when: monitored_interfaces is defined
+
+- name: Configure performance baseline collection
+  cisco.ios.ios_config:
+    lines:
+      - ip sla {{ item.sla_id }}
+      - icmp-echo {{ item.target }}
+      - frequency {{ item.frequency }}
+      - threshold {{ performance_monitoring.latency_threshold }}
+      - ip sla schedule {{ item.sla_id }} start-time now life forever
+    match: line
+  loop: "{{ performance_baselines }}"
+  when: performance_baselines is defined
+
+- name: Configure packet loss monitoring
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - ip accounting output-packets
+      - ip accounting access-violations
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ packet_loss_interfaces }}"
+  when: packet_loss_interfaces is defined
+
+- name: Configure jitter monitoring
+  cisco.ios.ios_config:
+    lines:
+      - ip sla {{ item.sla_id }}
+      - udp-jitter {{ item.target }} {{ item.port }}
+      - codec g711ulaw
+      - frequency {{ item.frequency }}
+      - ip sla schedule {{ item.sla_id }} start-time now life forever
+    match: line
+  loop: "{{ jitter_monitors }}"
+  when: jitter_monitors is defined

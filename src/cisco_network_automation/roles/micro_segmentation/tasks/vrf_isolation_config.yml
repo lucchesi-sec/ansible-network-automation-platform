@@ -1,0 +1,73 @@
+---
+# VRF Isolation Configuration for Micro-Segmentation
+# Configures VRF instances for tenant isolation
+
+- name: Configure tenant VRF instances
+  cisco.ios.ios_config:
+    lines:
+      - vrf definition {{ item.vrf_name }}
+      - description {{ item.description }}
+      - rd {{ item.rd }}
+      - address-family ipv4 unicast
+      - route-target export {{ item.rt_export }}
+      - route-target import {{ item.rt_import }}
+      - exit-address-family
+      - address-family l2vpn evpn
+      - route-target export {{ item.rt_export }}
+      - route-target import {{ item.rt_import }}
+      - exit-address-family
+    parents: vrf definition {{ item.vrf_name }}
+    match: line
+  loop: "{{ tenant_vrf_instances }}"
+  when: tenant_vrf_instances is defined
+
+- name: Configure VRF interface associations
+  cisco.ios.ios_config:
+    lines:
+      - interface vlan{{ item.vlan_id }}
+      - vrf forwarding {{ item.vrf_name }}
+      - ip address {{ item.ip_address }} {{ item.subnet_mask }}
+      - fabric forwarding mode anycast-gateway
+      - no shutdown
+    parents: interface vlan{{ item.vlan_id }}
+    match: line
+  loop: "{{ tenant_vrf_interfaces }}"
+  when: tenant_vrf_interfaces is defined
+
+- name: Configure VRF BGP address families
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - address-family ipv4 vrf {{ item.vrf_name }}
+      - redistribute connected
+      - redistribute static
+      - exit-address-family
+      - address-family l2vpn evpn
+      - neighbor {{ item.neighbor }} activate
+      - neighbor {{ item.neighbor }} send-community extended
+      - exit-address-family
+    parents: router bgp {{ bgp_as }}
+    match: line
+  loop: "{{ tenant_bgp_config }}"
+  when: tenant_bgp_config is defined
+
+- name: Configure VRF static routes for tenant isolation
+  cisco.ios.ios_config:
+    lines:
+      - ip route vrf {{ item.vrf_name }} {{ item.network }} {{ item.subnet_mask }} {{ item.next_hop }}
+    match: line
+  loop: "{{ tenant_static_routes }}"
+  when: tenant_static_routes is defined
+
+- name: Configure VRF route leaking for controlled inter-tenant communication
+  cisco.ios.ios_config:
+    lines:
+      - vrf definition {{ item.source_vrf }}
+      - address-family ipv4 unicast
+      - import map {{ item.route_map }}
+      - export map {{ item.route_map }}
+      - exit-address-family
+    parents: vrf definition {{ item.source_vrf }}
+    match: line
+  loop: "{{ vrf_route_leaking }}"
+  when: vrf_route_leaking is defined

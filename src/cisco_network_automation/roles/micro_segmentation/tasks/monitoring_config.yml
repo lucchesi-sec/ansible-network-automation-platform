@@ -1,0 +1,54 @@
+---
+# Monitoring Configuration Tasks
+# Configures monitoring for micro-segmentation
+
+- name: Configure tenant traffic monitoring
+  cisco.ios.ios_config:
+    lines:
+      - monitor session {{ item.session_id }} source interface {{ item.source_interface }}
+      - monitor session {{ item.session_id }} destination interface {{ item.destination_interface }}
+    match: line
+  loop: "{{ tenant_monitoring_sessions }}"
+  when: tenant_monitoring_sessions is defined
+
+- name: Configure NetFlow for tenant traffic analysis
+  cisco.ios.ios_config:
+    lines:
+      - ip flow-export destination {{ item.collector_ip }} {{ item.collector_port }}
+      - ip flow-export version {{ item.version }}
+      - ip flow-export source {{ item.source_interface }}
+    match: line
+  loop: "{{ netflow_collectors }}"
+  when: netflow_collectors is defined
+
+- name: Enable NetFlow on tenant interfaces
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - ip flow ingress
+      - ip flow egress
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ netflow_interfaces }}"
+  when: netflow_interfaces is defined
+
+- name: Configure SNMP monitoring for tenants
+  cisco.ios.ios_config:
+    lines:
+      - snmp-server enable traps vlan-membership
+      - snmp-server enable traps config
+      - snmp-server enable traps entity
+      - snmp-server host {{ item.host }} version {{ item.version }} {{ item.community }}
+    match: line
+  loop: "{{ snmp_tenant_monitoring }}"
+  when: snmp_tenant_monitoring is defined
+
+- name: Configure syslog for security events
+  cisco.ios.ios_config:
+    lines:
+      - logging host {{ item.host }}
+      - logging facility {{ item.facility }}
+      - logging trap {{ item.level }}
+    match: line
+  loop: "{{ syslog_security_monitoring }}"
+  when: syslog_security_monitoring is defined

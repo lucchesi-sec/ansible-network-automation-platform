@@ -1,0 +1,338 @@
+---
+# Monitoring & Observability Configuration Defaults
+
+# Global Settings
+monitoring_enabled: true
+observability_stack: "prometheus-grafana-elk"
+deployment_mode: "enterprise"  # Options: basic, standard, enterprise
+high_availability: true
+multi_region_support: false
+
+# Bounded Context Configuration
+bounded_contexts:
+  metrics_collection:
+    enabled: true
+    retention_days: 90
+    high_cardinality_enabled: true
+  alert_management:
+    enabled: true
+    notification_channels: ["email", "slack", "pagerduty"]
+    escalation_enabled: true
+  visualization:
+    enabled: true
+    dashboard_automation: true
+    custom_panels_enabled: true
+  log_processing:
+    enabled: true
+    log_retention_days: 30
+    full_text_search: true
+
+# Metrics Collection Domain
+metrics_collection:
+  # Time-series Database
+  prometheus:
+    enabled: true
+    version: "2.47.0"
+    retention_time: "90d"
+    storage_size: "100Gi"
+    scrape_interval: "15s"
+    evaluation_interval: "15s"
+    external_labels:
+      cluster: "enterprise-network"
+      environment: "{{ ansible_environment | default('production') }}"
+  
+  # High-cardinality metrics
+  influxdb:
+    enabled: true
+    version: "2.7.0"
+    retention_policy: "90d"
+    bucket: "enterprise-telemetry"
+    org: "enterprise"
+  
+  # SNMP Collection
+  snmp_exporter:
+    enabled: true
+    version: "0.21.0"
+    modules:
+      - cisco_ios
+      - cisco_nexus
+      - cisco_asa
+      - standard
+    walk_interval: "30s"
+    timeout: "10s"
+    retries: 3
+  
+  # gNMI Streaming Telemetry
+  gnmi_collector:
+    enabled: true
+    subscription_mode: "stream"
+    encoding: "json_ietf"
+    sample_interval: "10s"
+    suppress_redundant: true
+    heartbeat_interval: "60s"
+
+# Alert Management Domain
+alert_management:
+  alertmanager:
+    enabled: true
+    version: "0.26.0"
+    cluster_mode: true
+    storage_size: "10Gi"
+    retention: "120h"
+  
+  # Alert Rules Configuration
+  alert_rules:
+    network_infrastructure:
+      enabled: true
+      severity_levels: ["critical", "warning", "info"]
+    performance_monitoring:
+      enabled: true
+      cpu_threshold: 80
+      memory_threshold: 85
+      interface_utilization: 90
+      latency_threshold: 100
+    security_monitoring:
+      enabled: true
+      failed_auth_threshold: 10
+      anomaly_detection: true
+    zero_trust_monitoring:
+      enabled: true
+      policy_violations: true
+      trust_score_threshold: 0.3
+
+  # Notification Channels
+  notification_channels:
+    email:
+      enabled: true
+      smtp_server: "{{ vault_smtp_server }}"
+      smtp_port: 587
+      from_address: "alerts@enterprise.local"
+      to_addresses:
+        - netops@enterprise.local
+        - security@enterprise.local
+    slack:
+      enabled: true
+      webhook_url: "{{ vault_slack_webhook }}"
+      channel: "#network-alerts"
+      username: "AlertManager"
+    pagerduty:
+      enabled: false
+      integration_key: "{{ vault_pagerduty_key }}"
+      severity_mapping:
+        critical: "critical"
+        warning: "warning"
+        info: "info"
+
+# Visualization Domain
+visualization:
+  grafana:
+    enabled: true
+    version: "10.1.0"
+    admin_user: admin
+    admin_password: "{{ vault_grafana_admin_password }}"
+    storage_size: "20Gi"
+    plugins:
+      - grafana-clock-panel
+      - grafana-worldmap-panel
+      - grafana-piechart-panel
+      - grafana-flowcharting
+    
+  # Dashboard Configuration
+  dashboards:
+    network_overview:
+      enabled: true
+      auto_import: true
+      refresh_interval: "30s"
+    device_performance:
+      enabled: true
+      auto_import: true
+      refresh_interval: "15s"
+    security_monitoring:
+      enabled: true
+      auto_import: true
+      refresh_interval: "60s"
+    zero_trust_analytics:
+      enabled: true
+      auto_import: true
+      refresh_interval: "30s"
+    ai_insights:
+      enabled: false
+      auto_import: true
+      refresh_interval: "300s"
+
+# Log Processing Domain
+log_processing:
+  elasticsearch:
+    enabled: true
+    version: "8.9.0"
+    cluster_name: "enterprise-logs"
+    storage_size: "200Gi"
+    replicas: 1
+    shards: 3
+    retention_days: 30
+  
+  logstash:
+    enabled: true
+    version: "8.9.0"
+    workers: 4
+    batch_size: 125
+    batch_delay: 50
+    pipeline_workers: 2
+  
+  kibana:
+    enabled: true
+    version: "8.9.0"
+    storage_size: "10Gi"
+  
+  # Log Sources
+  log_sources:
+    syslog:
+      enabled: true
+      port: 514
+      protocol: "udp"
+      format: "rfc3164"
+    filebeat:
+      enabled: true
+      config_reload: true
+      modules:
+        - system
+        - audit
+        - network
+    cisco_logs:
+      enabled: true
+      log_levels:
+        - error
+        - warning
+        - info
+        - debug
+
+# Data Pipeline Architecture
+data_pipeline:
+  # Streaming Processing
+  kafka:
+    enabled: true
+    version: "3.5.0"
+    topics:
+      telemetry_raw:
+        partitions: 12
+        replication: 3
+        retention_ms: 604800000  # 7 days
+      telemetry_processed:
+        partitions: 6
+        replication: 3
+        retention_ms: 2592000000  # 30 days
+      alerts:
+        partitions: 3
+        replication: 3
+        retention_ms: 604800000  # 7 days
+  
+  # Stream Processing
+  kafka_streams:
+    enabled: true
+    applications:
+      - telemetry_processor
+      - alert_correlator
+      - anomaly_detector
+    parallelism: 4
+    state_store_cache: "100Mi"
+  
+  # Batch Processing
+  spark:
+    enabled: false
+    version: "3.4.0"
+    workers: 3
+    executor_memory: "2g"
+    driver_memory: "1g"
+
+# Integration Settings
+integration:
+  existing_roles:
+    performance_optimization:
+      metrics_export: true
+      custom_dashboards: true
+    security_hardening:
+      audit_log_integration: true
+      security_metrics: true
+    ai_network_intelligence:
+      ml_metrics_export: true
+      predictive_dashboards: true
+  
+  # External Systems
+  external_systems:
+    cisco_dna_center:
+      enabled: false
+      api_endpoint: "https://dnac.enterprise.local"
+      username: "{{ vault_dnac_username }}"
+      password: "{{ vault_dnac_password }}"
+    cisco_ise:
+      enabled: false
+      api_endpoint: "https://ise.enterprise.local"
+      username: "{{ vault_ise_username }}"
+      password: "{{ vault_ise_password }}"
+
+# Performance & Scalability
+performance:
+  # Resource Allocation
+  resource_limits:
+    prometheus:
+      cpu: "2000m"
+      memory: "4Gi"
+    grafana:
+      cpu: "500m"
+      memory: "1Gi"
+    elasticsearch:
+      cpu: "2000m"
+      memory: "4Gi"
+    logstash:
+      cpu: "1000m"
+      memory: "2Gi"
+  
+  # Optimization Settings
+  optimization:
+    prometheus_recording_rules: true
+    grafana_caching: true
+    elasticsearch_index_templates: true
+    log_sampling_rate: 1.0
+
+# Security Configuration
+security:
+  # Authentication
+  authentication:
+    ldap_integration: true
+    saml_sso: false
+    oauth2: false
+    local_users: true
+  
+  # Authorization
+  rbac:
+    enabled: true
+    roles:
+      - network_admin
+      - network_operator
+      - security_analyst
+      - read_only
+  
+  # Encryption
+  encryption:
+    tls_enabled: true
+    cert_manager: true
+    vault_integration: true
+
+# Backup & Recovery
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 30
+  storage:
+    type: "s3"
+    bucket: "enterprise-monitoring-backups"
+    region: "us-east-1"
+
+# Feature Flags
+feature_flags:
+  ai_anomaly_detection: false
+  predictive_alerting: false
+  auto_remediation: false
+  distributed_tracing: true
+  custom_metrics_api: true
+  webhook_integrations: true

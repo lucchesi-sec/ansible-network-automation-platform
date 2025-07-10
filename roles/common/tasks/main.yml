@@ -1,8 +1,0 @@
----
-- name: Ensure common packages are installed
-  ansible.builtin.package:
-    name: "{{ item }}"
-    state: present
-  loop:
-    - python3
-    - git

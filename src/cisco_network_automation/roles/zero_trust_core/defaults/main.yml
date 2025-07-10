@@ -1,0 +1,127 @@
+---
+# Zero Trust Core - Default Variables
+# Consolidated defaults for zero trust policies and continuous verification
+
+# Core Zero Trust Settings (inherited from group_vars/all.yml)
+# zero_trust_policy_enforcement: strict
+# default_trust_level: never
+# verification_interval: 300
+# identity_timeout: 1800
+# micro_segmentation_default: deny_all
+
+# Identity Integration Settings (inherited from group_vars/all.yml)
+# identity_sources:
+#   - type: active_directory
+#     server: dc01.enterprise.local
+#     backup_server: dc02.enterprise.local
+#     domain: enterprise.local
+#   - type: radius
+#     server: radius01.enterprise.local
+#     backup_server: radius02.enterprise.local
+#     port: 1812
+
+# Certificate Management (inherited from group_vars/all.yml)
+# pki_root_ca: "{{ vault_pki_root_ca }}"
+# device_certificate_template: ZeroTrustDevice
+# user_certificate_template: ZeroTrustUser
+# certificate_renewal_threshold: 30
+
+# Verification Methods (inherited from group_vars/all.yml)
+# verification_methods:
+#   - device_posture
+#   - user_behavior
+#   - traffic_analysis
+#   - risk_scoring
+
+# Default Zero Trust Policies
+zero_trust_policies:
+  - name: user_to_corporate
+    description: "User device access to corporate resources"
+    src_zone: user_devices
+    dst_zone: corporate_resources
+    action: verify_then_allow
+    verification: required
+    logging: enabled
+  - name: guest_isolation
+    description: "Guest device isolation from corporate resources"
+    src_zone: guest_devices
+    dst_zone: corporate_resources
+    action: deny
+    verification: not_applicable
+    logging: enabled
+  - name: iot_containment
+    description: "IoT device containment policy"
+    src_zone: iot_devices
+    dst_zone: user_devices
+    action: deny
+    verification: not_applicable
+    logging: enabled
+  - name: admin_privileged_access
+    description: "Administrative privileged access"
+    src_zone: admin_devices
+    dst_zone: infrastructure
+    action: verify_then_allow
+    verification: enhanced
+    logging: detailed
+
+# Default Verification Responses
+verification_responses:
+  - trigger: high_risk_score
+    action: quarantine
+    notification: immediate
+    escalation: automatic
+    remediation: guided
+  - trigger: failed_device_posture
+    action: limited_access
+    notification: enabled
+    escalation: manual
+    remediation: self_service
+  - trigger: anomalous_user_behavior
+    action: additional_verification
+    notification: enabled
+    escalation: automatic
+    remediation: guided
+  - trigger: malicious_traffic_detected
+    action: block_and_isolate
+    notification: immediate
+    escalation: automatic
+    remediation: expert_required
+
+# Risk Scoring Configuration
+risk_scoring_factors:
+  - location
+  - device
+  - user
+  - traffic
+  - time
+
+risk_scoring_weights:
+  location: 25
+  device: 30
+  user: 20
+  traffic: 15
+  time: 10
+
+# Device Posture Requirements
+device_posture_requirements:
+  antivirus: required
+  patches: current
+  encryption: required
+  compliance: required
+  configuration: approved
+
+# User Behavior Analysis Settings
+user_behavior_settings:
+  baseline_learning_days: 30
+  anomaly_threshold: high
+  location_awareness: enabled
+  time_pattern_analysis: enabled
+  access_pattern_analysis: enabled
+
+# Traffic Analysis Settings
+traffic_analysis_settings:
+  deep_packet_inspection: enabled
+  flow_correlation: enabled
+  malware_detection: enabled
+  data_loss_prevention: enabled
+  encrypted_traffic_analysis: enabled

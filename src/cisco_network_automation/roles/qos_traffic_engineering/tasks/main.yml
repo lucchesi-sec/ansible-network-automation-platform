@@ -1,0 +1,78 @@
+---
+# Main tasks file for QoS Traffic Engineering role
+
+- name: Display QoS Traffic Engineering configuration banner
+  debug:
+    msg: |
+      Configuring QoS Traffic Engineering on {{ inventory_hostname }}
+      Device Role: {{ device_role | default('unknown') }}
+      QoS Enabled: {{ qos_enabled }}
+      Traffic Engineering Enabled: {{ traffic_engineering_enabled }}
+
+- name: Configure QoS global settings
+  include_tasks: configure_qos_global.yml
+  when: qos_enabled | bool
+
+- name: Configure class maps
+  include_tasks: configure_class_maps.yml
+  when: qos_enabled | bool
+
+- name: Configure policy maps
+  include_tasks: configure_policy_maps.yml
+  when: qos_enabled | bool
+
+- name: Configure interface QoS policies
+  include_tasks: configure_interface_qos.yml
+  when: qos_enabled | bool
+
+- name: Configure MPLS Traffic Engineering
+  include_tasks: configure_mpls_te.yml
+  when: 
+    - traffic_engineering_enabled | bool
+    - mpls_enabled | bool
+    - "'core_routers' in group_names or 'wan_routers' in group_names"
+
+- name: Configure RSVP for Traffic Engineering
+  include_tasks: configure_rsvp.yml
+  when: 
+    - traffic_engineering_enabled | bool
+    - rsvp_enabled | bool
+    - "'core_routers' in group_names or 'wan_routers' in group_names"
+
+- name: Configure Traffic Engineering tunnels
+  include_tasks: configure_te_tunnels.yml
+  when: 
+    - traffic_engineering_enabled | bool
+    - "'core_routers' in group_names or 'wan_routers' in group_names"
+
+- name: Configure Auto-Bandwidth
+  include_tasks: configure_auto_bandwidth.yml
+  when: 
+    - traffic_engineering_enabled | bool
+    - traffic_engineering.auto_bandwidth | bool
+    - "'core_routers' in group_names or 'wan_routers' in group_names"
+
+- name: Configure Fast Reroute
+  include_tasks: configure_fast_reroute.yml
+  when: 
+    - traffic_engineering_enabled | bool
+    - traffic_engineering.fast_reroute | bool
+    - "'core_routers' in group_names or 'wan_routers' in group_names"
+
+- name: Verify QoS configuration
+  include_tasks: verify_qos_config.yml
+  when: qos_enabled | bool
+
+- name: Verify Traffic Engineering configuration
+  include_tasks: verify_te_config.yml
+  when: traffic_engineering_enabled | bool
+
+- name: Display configuration summary
+  debug:
+    msg: |
+      QoS Traffic Engineering configuration completed on {{ inventory_hostname }}
+      Class Maps: {{ default_class_maps | length }}
+      Policy Maps: {{ default_policy_maps | length }}
+      Traffic Engineering: {{ 'Enabled' if traffic_engineering_enabled else 'Disabled' }}
+      MPLS: {{ 'Enabled' if mpls_enabled else 'Disabled' }}
+      RSVP: {{ 'Enabled' if rsvp_enabled else 'Disabled' }}

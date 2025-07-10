@@ -1,0 +1,460 @@
+---
+# ML Model Training Pipeline Setup
+# Implements comprehensive model training, validation, and deployment pipeline
+
+- name: Create ML training namespace
+  kubernetes.core.k8s:
+    name: "{{ ml_infrastructure.namespace }}-training"
+    api_version: v1
+    kind: Namespace
+    state: present
+  delegate_to: localhost
+  tags: [kubernetes, namespace]
+
+- name: Deploy MLflow tracking server
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: mlflow-tracking-server
+        namespace: "{{ ml_infrastructure.namespace }}-training"
+        labels:
+          app: mlflow
+          component: tracking-server
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: mlflow
+            component: tracking-server
+        template:
+          metadata:
+            labels:
+              app: mlflow
+              component: tracking-server
+          spec:
+            containers:
+            - name: mlflow
+              image: mlflow/mlflow:2.9.2
+              ports:
+              - containerPort: 5000
+              env:
+              - name: MLFLOW_BACKEND_STORE_URI
+                value: "postgresql://{{ vault_mlflow_db_user }}:{{ vault_mlflow_db_password }}@postgres.{{ ml_infrastructure.namespace }}.svc.cluster.local:5432/mlflow"
+              - name: MLFLOW_DEFAULT_ARTIFACT_ROOT
+                value: "{{ ml_infrastructure.storage.model_registry.artifact_store }}"
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: aws-credentials
+                    key: access-key-id
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: aws-credentials
+                    key: secret-access-key
+              command:
+              - mlflow
+              - server
+              - --host
+              - "0.0.0.0"
+              - --port
+              - "5000"
+              resources:
+                requests:
+                  cpu: "500m"
+                  memory: "1Gi"
+                limits:
+                  cpu: "1"
+                  memory: "2Gi"
+  delegate_to: localhost
+  tags: [kubernetes, mlflow]
+
+- name: Create MLflow service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: mlflow-tracking-service
+        namespace: "{{ ml_infrastructure.namespace }}-training"
+      spec:
+        selector:
+          app: mlflow
+          component: tracking-server
+        ports:
+        - port: 5000
+          targetPort: 5000
+        type: ClusterIP
+  delegate_to: localhost
+  tags: [kubernetes, service]
+
+- name: Deploy Kubeflow training pipeline
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Workflow
+      metadata:
+        name: "ml-training-pipeline-{{ ansible_date_time.epoch }}"
+        namespace: "{{ ml_infrastructure.namespace }}-training"
+        labels:
+          workflows.argoproj.io/workflow-template: ml-training-pipeline
+      spec:
+        entrypoint: ml-training-workflow
+        serviceAccountName: "{{ ml_infrastructure.kubernetes.service_account }}"
+        templates:
+        - name: ml-training-workflow
+          dag:
+            tasks:
+            - name: data-preparation
+              template: data-prep-task
+            - name: feature-engineering
+              template: feature-eng-task
+              dependencies: [data-preparation]
+            - name: model-training
+              template: model-training-task
+              dependencies: [feature-engineering]
+              withItems:
+              {% for model_name, model_config in ml_models.items() %}
+              {% if model_config.enabled %}
+              - model_name: "{{ model_name }}"
+                algorithm: "{{ model_config.algorithm }}"
+                framework: "{{ model_config.framework }}"
+              {% endif %}
+              {% endfor %}
+            - name: model-validation
+              template: model-validation-task
+              dependencies: [model-training]
+            - name: model-registration
+              template: model-registration-task
+              dependencies: [model-validation]
+              
+        - name: data-prep-task
+          container:
+            image: "{{ ml_training_images.data_prep | default('python:3.9-slim') }}"
+            command: [python]
+            args: ["/scripts/data_preparation.py"]
+            volumeMounts:
+            - name: training-scripts
+              mountPath: /scripts
+            - name: data-volume
+              mountPath: /data
+            env:
+            - name: DATA_SOURCE
+              value: "{{ data_pipeline.ingestion.kafka.bootstrap_servers }}"
+            - name: OUTPUT_PATH
+              value: "/data/prepared"
+            resources:
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+              limits:
+                cpu: "2"
+                memory: "4Gi"
+                
+        - name: feature-eng-task
+          container:
+            image: "{{ ml_training_images.feature_eng | default('python:3.9-slim') }}"
+            command: [python]
+            args: ["/scripts/feature_engineering.py"]
+            volumeMounts:
+            - name: training-scripts
+              mountPath: /scripts
+            - name: data-volume
+              mountPath: /data
+            env:
+            - name: INPUT_PATH
+              value: "/data/prepared"
+            - name: OUTPUT_PATH
+              value: "/data/features"
+            - name: FEATURE_STORE_URL
+              value: "{{ ml_infrastructure.storage.feature_store.online_store }}"
+            resources:
+              requests:
+                cpu: "2"
+                memory: "4Gi"
+              limits:
+                cpu: "4"
+                memory: "8Gi"
+                
+        - name: model-training-task
+          container:
+            image: "{{ ml_training_images.training | default('tensorflow/tensorflow:2.13.0-gpu') }}"
+            command: [python]
+            args: 
+            - "/scripts/train_model.py"
+            - "--model-name={{item.model_name}}"
+            - "--algorithm={{item.algorithm}}"
+            - "--framework={{item.framework}}"
+            volumeMounts:
+            - name: training-scripts
+              mountPath: /scripts
+            - name: data-volume
+              mountPath: /data
+            - name: model-volume
+              mountPath: /models
+            env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow-tracking-service.{{ ml_infrastructure.namespace }}-training.svc.cluster.local:5000"
+            - name: INPUT_PATH
+              value: "/data/features"
+            - name: MODEL_OUTPUT_PATH
+              value: "/models"
+            - name: HYPEROPT_TRIALS
+              value: "{{ training_config.hyperparameter_optimization.n_trials }}"
+            resources:
+              requests:
+                cpu: "{{ training_config.compute.cpu_cores }}"
+                memory: "{{ training_config.compute.memory_gb }}Gi"
+              limits:
+                cpu: "{{ training_config.compute.cpu_cores * 2 }}"
+                memory: "{{ training_config.compute.memory_gb * 2 }}Gi"
+                nvidia.com/gpu: "{{ training_config.compute.gpu_count }}"
+                
+        - name: model-validation-task
+          container:
+            image: "{{ ml_training_images.validation | default('python:3.9-slim') }}"
+            command: [python]
+            args: ["/scripts/model_validation.py"]
+            volumeMounts:
+            - name: training-scripts
+              mountPath: /scripts
+            - name: data-volume
+              mountPath: /data
+            - name: model-volume
+              mountPath: /models
+            env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow-tracking-service.{{ ml_infrastructure.namespace }}-training.svc.cluster.local:5000"
+            - name: TEST_DATA_PATH
+              value: "/data/test"
+            - name: MODEL_PATH
+              value: "/models"
+            - name: ACCURACY_THRESHOLD
+              value: "{{ ml_models[item.model_name].accuracy_threshold | default(0.85) }}"
+            resources:
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+              limits:
+                cpu: "2"
+                memory: "4Gi"
+                
+        - name: model-registration-task
+          container:
+            image: "{{ ml_training_images.registration | default('python:3.9-slim') }}"
+            command: [python]
+            args: ["/scripts/model_registration.py"]
+            volumeMounts:
+            - name: training-scripts
+              mountPath: /scripts
+            - name: model-volume
+              mountPath: /models
+            env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow-tracking-service.{{ ml_infrastructure.namespace }}-training.svc.cluster.local:5000"
+            - name: MODEL_PATH
+              value: "/models"
+            - name: MODEL_STAGE
+              value: "Staging"
+            resources:
+              requests:
+                cpu: "500m"
+                memory: "1Gi"
+              limits:
+                cpu: "1"
+                memory: "2Gi"
+                
+        volumes:
+        - name: training-scripts
+          configMap:
+            name: ml-training-scripts
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: ml-data-pvc
+        - name: model-volume
+          persistentVolumeClaim:
+            claimName: ml-model-pvc
+  delegate_to: localhost
+  tags: [kubernetes, training, pipeline]
+
+- name: Create training scripts ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: ml-training-scripts
+        namespace: "{{ ml_infrastructure.namespace }}-training"
+      data:
+        data_preparation.py: |
+          {{ lookup('file', 'files/training_scripts/data_preparation.py') }}
+        feature_engineering.py: |
+          {{ lookup('file', 'files/training_scripts/feature_engineering.py') }}
+        train_model.py: |
+          {{ lookup('file', 'files/training_scripts/train_model.py') }}
+        model_validation.py: |
+          {{ lookup('file', 'files/training_scripts/model_validation.py') }}
+        model_registration.py: |
+          {{ lookup('file', 'files/training_scripts/model_registration.py') }}
+  delegate_to: localhost
+  tags: [kubernetes, configmap]
+
+- name: Create persistent volume claims for training
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: "{{ item.name }}"
+        namespace: "{{ ml_infrastructure.namespace }}-training"
+      spec:
+        accessModes:
+        - ReadWriteMany
+        resources:
+          requests:
+            storage: "{{ item.size }}"
+        storageClassName: "{{ item.storage_class | default('fast-ssd') }}"
+  loop:
+    - name: ml-data-pvc
+      size: 100Gi
+    - name: ml-model-pvc
+      size: 50Gi
+  delegate_to: localhost
+  tags: [kubernetes, storage]
+
+- name: Schedule automated training workflows
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: "automated-training-{{ item.key }}"
+        namespace: "{{ ml_infrastructure.namespace }}-training"
+      spec:
+        schedule: "{{ item.value.training_schedule }}"
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                restartPolicy: OnFailure
+                containers:
+                - name: trigger-training
+                  image: curlimages/curl:latest
+                  command:
+                  - curl
+                  - -X
+                  - POST
+                  - "http://argo-workflows-server.{{ ml_infrastructure.namespace }}.svc.cluster.local:2746/api/v1/workflows/{{ ml_infrastructure.namespace }}-training"
+                  - -H
+                  - "Content-Type: application/json"
+                  - -d
+                  - |
+                    {
+                      "metadata": {
+                        "generateName": "scheduled-training-{{ item.key }}-",
+                        "namespace": "{{ ml_infrastructure.namespace }}-training"
+                      },
+                      "spec": {
+                        "workflowTemplateRef": {
+                          "name": "ml-training-pipeline"
+                        },
+                        "arguments": {
+                          "parameters": [
+                            {
+                              "name": "model_name",
+                              "value": "{{ item.key }}"
+                            }
+                          ]
+                        }
+                      }
+                    }
+  loop: "{{ ml_models | dict2items }}"
+  when: item.value.enabled
+  delegate_to: localhost
+  tags: [kubernetes, cronjob, scheduling]
+
+- name: Deploy Optuna hyperparameter optimization service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: optuna-dashboard
+        namespace: "{{ ml_infrastructure.namespace }}-training"
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: optuna-dashboard
+        template:
+          metadata:
+            labels:
+              app: optuna-dashboard
+          spec:
+            containers:
+            - name: optuna-dashboard
+              image: optuna/optuna-dashboard:latest
+              ports:
+              - containerPort: 8080
+              env:
+              - name: OPTUNA_DB_URL
+                value: "postgresql://{{ vault_optuna_db_user }}:{{ vault_optuna_db_password }}@postgres.{{ ml_infrastructure.namespace }}.svc.cluster.local:5432/optuna"
+              command:
+              - optuna-dashboard
+              - --host
+              - "0.0.0.0"
+              - --port
+              - "8080"
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "512Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "1Gi"
+  when: training_config.hyperparameter_optimization.enabled
+  delegate_to: localhost
+  tags: [kubernetes, optuna]
+
+- name: Verify training pipeline deployment
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ ml_infrastructure.namespace }}-training"
+    label_selectors:
+      - app=mlflow
+  register: mlflow_pods
+  delegate_to: localhost
+  tags: [verification]
+
+- name: Display training pipeline status
+  debug:
+    msg: |
+      🧠 ML Training Pipeline Status:
+      ✅ MLflow Tracking Server: {{ 'Running' if mlflow_pods.resources | length > 0 else 'Pending' }}
+      ✅ Training Workflows: Configured
+      ✅ Hyperparameter Optimization: {{ 'Enabled' if training_config.hyperparameter_optimization.enabled else 'Disabled' }}
+      ✅ Automated Scheduling: Configured
+      
+      📊 Model Training Schedule:
+      {% for model_name, model_config in ml_models.items() %}
+      {% if model_config.enabled %}
+      - {{ model_name | title | replace('_', ' ') }}: {{ model_config.training_schedule }}
+      {% endif %}
+      {% endfor %}
+      
+      🔗 Access URLs:
+      - MLflow UI: {{ ml_infrastructure.storage.model_registry.endpoint }}
+      {% if training_config.hyperparameter_optimization.enabled %}
+      - Optuna Dashboard: http://optuna-dashboard.{{ ml_infrastructure.namespace }}-training.svc.cluster.local:8080
+      {% endif %}
+  tags: [summary]

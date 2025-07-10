@@ -1,0 +1,81 @@
+---
+# Default variables for QoS Traffic Engineering role
+qos_enabled: true
+traffic_engineering_enabled: true
+mpls_enabled: true
+rsvp_enabled: true
+
+# QoS Global Configuration
+qos_global:
+  preserve_dscp: true
+  policy_map_stats: true
+  prec_to_dscp_map: default
+  dscp_to_exp_map: default
+
+# Class Maps Configuration
+default_class_maps:
+  - name: VOICE_TRAFFIC
+    match_criteria: ["dscp ef", "cos 5"]
+    description: "Voice RTP Traffic - Highest Priority"
+  - name: VOICE_SIGNALING
+    match_criteria: ["dscp cs3", "cos 3"]
+    description: "Voice Signaling Traffic"
+  - name: VIDEO_TRAFFIC
+    match_criteria: ["dscp af41", "cos 4"]
+    description: "Video Streaming Traffic"
+  - name: CRITICAL_DATA
+    match_criteria: ["dscp af31", "cos 3"]
+    description: "Critical Business Applications"
+  - name: TRANSACTIONAL_DATA
+    match_criteria: ["dscp af21", "cos 2"]
+    description: "Transactional Business Data"
+  - name: BULK_DATA
+    match_criteria: ["dscp af11", "cos 1"]
+    description: "Bulk Data Transfer"
+  - name: SCAVENGER
+    match_criteria: ["dscp cs1", "cos 1"]
+    description: "Scavenger Traffic"
+  - name: BEST_EFFORT
+    match_criteria: ["dscp default", "cos 0"]
+    description: "Best Effort Traffic"
+
+# Policy Maps Configuration
+default_policy_maps:
+  - name: WAN_OUT_POLICY
+    description: "WAN Outbound QoS Policy"
+    classes:
+      - class_name: VOICE_TRAFFIC
+        priority: true
+        bandwidth_percent: 20
+        queue_limit: 32
+      - class_name: VOICE_SIGNALING
+        bandwidth_percent: 5
+        queue_limit: 16
+      - class_name: VIDEO_TRAFFIC
+        bandwidth_percent: 30
+        queue_limit: 64
+      - class_name: CRITICAL_DATA
+        bandwidth_percent: 25
+        queue_limit: 64
+      - class_name: TRANSACTIONAL_DATA
+        bandwidth_percent: 10
+        queue_limit: 32
+      - class_name: BULK_DATA
+        bandwidth_percent: 5
+        queue_limit: 16
+      - class_name: SCAVENGER
+        bandwidth_percent: 1
+        queue_limit: 8
+      - class_name: BEST_EFFORT
+        bandwidth_percent: 4
+        queue_limit: 32
+
+# Traffic Engineering Configuration
+traffic_engineering:
+  tunnel_selection: explicit
+  auto_bandwidth: true
+  auto_bandwidth_frequency: 300
+  load_balancing: equal-cost
+  fast_reroute: true
+  rsvp_bandwidth_percent: 80
+  tunnel_backup: true

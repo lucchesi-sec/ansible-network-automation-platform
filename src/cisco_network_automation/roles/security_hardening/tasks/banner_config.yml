@@ -1,0 +1,27 @@
+---
+# Banner Configuration Tasks
+# Configures legal and security banners
+
+- name: Configure MOTD banner
+  ios_config:
+    lines:
+      - banner motd ^{{ motd_banner }}^
+  when: motd_banner is defined
+  
+- name: Configure login banner
+  ios_config:
+    lines:
+      - banner login ^{{ login_banner }}^
+  when: login_banner is defined
+  
+- name: Configure exec banner
+  ios_config:
+    lines:
+      - banner exec ^{{ exec_banner }}^
+  when: exec_banner is defined
+  
+- name: Configure incoming banner
+  ios_config:
+    lines:
+      - banner incoming ^{{ incoming_banner }}^
+  when: incoming_banner is defined

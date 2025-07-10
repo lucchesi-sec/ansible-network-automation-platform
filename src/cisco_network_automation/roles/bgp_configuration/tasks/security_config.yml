@@ -1,0 +1,68 @@
+---
+# BGP Security Configuration Tasks
+# Implements BGP security best practices
+
+- name: Configure BGP authentication for all neighbors
+  ios_config:
+    lines:
+      - neighbor {{ item.neighbor_ip }} password {{ bgp_authentication_key }}
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: 
+    - item.neighbor_ip is defined
+    - bgp_authentication_key | length > 0
+
+- name: Configure BGP TTL security
+  ios_config:
+    lines:
+      - neighbor {{ item.neighbor_ip }} ttl-security hops {{ item.ttl_hops | default(bgp_security.ttl_security_hops) }}
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: 
+    - item.neighbor_ip is defined
+    - item.security_enabled | default(true)
+
+- name: Configure BGP maximum prefix limits
+  ios_config:
+    lines:
+      - neighbor {{ item.neighbor_ip }} maximum-prefix {{ item.max_prefix | default(100000) }} {{ bgp_security.max_prefix_warning_threshold }} {% if bgp_security.max_prefix_warning_only %}warning-only{% endif %}
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: 
+    - item.neighbor_ip is defined
+    - item.max_prefix is defined
+
+- name: Configure BGP prefix filtering
+  ios_config:
+    lines:
+      - neighbor {{ item.neighbor_ip }} prefix-list {{ item.prefix_list_in }} in
+      - neighbor {{ item.neighbor_ip }} prefix-list {{ item.prefix_list_out }} out
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: 
+    - item.neighbor_ip is defined
+    - item.prefix_list_in is defined or item.prefix_list_out is defined
+
+- name: Configure BGP BFD support
+  ios_config:
+    lines:
+      - neighbor {{ item.neighbor_ip }} fall-over bfd
+    parents:
+      - router bgp {{ bgp_asn }}
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: 
+    - item.neighbor_ip is defined
+    - bgp_bfd_support | default(false)
+    - item.bfd_enabled | default(false)
+
+- name: Display BGP security configuration completion
+  debug:
+    msg:
+      - "BGP security configuration completed"
+      - "Authentication configured: {{ 'Yes' if bgp_authentication_key | length > 0 else 'No' }}"
+      - "TTL security enabled: {{ 'Yes' if bgp_security.ttl_security_hops < 255 else 'No' }}"
+      - "BFD support: {{ 'Enabled' if bgp_bfd_support else 'Disabled' }}"

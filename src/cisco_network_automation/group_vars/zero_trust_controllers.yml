@@ -1,0 +1,75 @@
+---
+# Zero Trust Controller Configuration
+
+# Controller-specific settings
+controller_mode: active_standby
+cluster_vip: 10.0.1.9
+cluster_heartbeat_interval: 1
+cluster_failover_timeout: 5
+
+# Policy Engine Configuration
+policy_engine_database: zero_trust_policies
+policy_refresh_interval: 60
+policy_distribution_method: push
+policy_validation_strict: true
+
+# Identity Provider Integration
+identity_provider_config:
+  primary_ldap:
+    server: ldap01.enterprise.local
+    port: 636
+    ssl_enabled: true
+    base_dn: "DC=enterprise,DC=local"
+    bind_user: "CN=ansible,CN=Users,DC=enterprise,DC=local"
+    bind_password: "{{ vault_ldap_bind_password }}"
+  secondary_ldap:
+    server: ldap02.enterprise.local
+    port: 636
+    ssl_enabled: true
+    base_dn: "DC=enterprise,DC=local"
+    bind_user: "CN=ansible,CN=Users,DC=enterprise,DC=local"
+    bind_password: "{{ vault_ldap_bind_password }}"
+
+# Risk Assessment Engine
+risk_assessment_factors:
+  - device_compliance
+  - user_behavior
+  - location_context
+  - time_context
+  - network_context
+
+risk_scoring_thresholds:
+  low: 0-30
+  medium: 31-70
+  high: 71-100
+
+# Continuous Monitoring
+monitoring_interfaces:
+  - GigabitEthernet0/0
+  - GigabitEthernet0/1
+  - GigabitEthernet0/2
+
+flow_monitoring_enabled: true
+flow_export_destination: 10.0.0.200
+flow_export_port: 2055
+
+# High Availability
+ha_preempt_enabled: true
+ha_preempt_delay: 300
+ha_track_interfaces:
+  - GigabitEthernet0/0
+  - GigabitEthernet0/1
+
+# Controller Security
+controller_hardening:
+  disable_unused_services: true
+  enable_secure_boot: true
+  enable_code_signing: true
+  enable_secure_storage: true
+
+# API Security
+api_security:
+  enable_oauth: true
+  token_lifetime: 3600
+  rate_limiting_enabled: true
+  rate_limit_requests_per_minute: 1000

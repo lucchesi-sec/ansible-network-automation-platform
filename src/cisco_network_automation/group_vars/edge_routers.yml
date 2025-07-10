@@ -1,0 +1,370 @@
+---
+# Edge Routers Configuration Variables
+# Edge routing for external connectivity with BGP peering
+
+# Global Edge Router Settings
+edge_router_type: "enterprise_edge"
+management_network: "10.0.0.0/16"
+edge_vrf: "EDGE"
+ospf_process_id: 1
+bgp_process_id: 65001
+
+# OSPF Configuration for Edge Layer
+ospf_config:
+  process_id: "{{ ospf_process_id }}"
+  router_id: "{{ router_id }}"
+  area_config:
+    - area_id: "{{ ospf_area }}"
+      area_type: standard
+      authentication: message-digest
+      networks:
+        - network: "10.{{ ospf_area }}.0.0"
+          wildcard: "0.0.255.255"
+          area: "{{ ospf_area }}"
+  timers:
+    hello: 10
+    dead: 40
+    retransmit: 5
+    transmit_delay: 1
+  authentication:
+    key_id: 1
+    key: "{{ vault_ospf_auth_key }}"
+    algorithm: md5
+  default_information:
+    originate: yes
+    metric: 1
+    metric_type: 1
+    route_map: "OSPF-DEFAULT-ROUTE"
+
+# BGP Configuration for Edge Layer
+bgp_config:
+  asn: "{{ bgp_asn }}"
+  router_id: "{{ router_id }}"
+  log_neighbor_changes: yes
+  synchronization: no
+  auto_summary: no
+  bestpath:
+    as_path_multipath_relax: yes
+    compare_routerid: yes
+    med_confed: yes
+  timers:
+    keepalive: 60
+    holdtime: 180
+  route_reflector:
+    servers:
+      - ip: "10.0.4.10"
+        remote_as: 65001
+        update_source: "Loopback0"
+        description: "Route Reflector 1"
+      - ip: "10.0.4.11"
+        remote_as: 65001
+        update_source: "Loopback0"
+        description: "Route Reflector 2"
+  external_neighbors:
+    - ip: "{{ external_neighbor_ip | default('192.168.100.1') }}"
+      remote_as: "{{ external_asn }}"
+      description: "External BGP Peer - {{ peer_type | title }}"
+      password: "{{ vault_bgp_external_password }}"
+      maximum_prefix: 10000
+      filter_list:
+        in: "{{ external_asn }}-IN"
+        out: "{{ bgp_asn }}-OUT"
+      route_map:
+        in: "{{ external_asn }}-IN"
+        out: "{{ bgp_asn }}-OUT"
+  address_families:
+    - afi: ipv4
+      safi: unicast
+      networks:
+        - network: "10.0.0.0"
+          mask: "255.255.0.0"
+      redistribute:
+        - protocol: ospf
+          metric: 300
+          route_map: "OSPF-TO-BGP-EDGE"
+        - protocol: static
+          route_map: "STATIC-TO-BGP-EDGE"
+
+# Route Maps for Edge Layer
+route_maps:
+  - name: "OSPF-TO-BGP-EDGE"
+    action: permit
+    sequence: 10
+    match:
+      - "ip address prefix-list INTERNAL-NETWORKS"
+    set:
+      - "metric 300"
+      - "local-preference 100"
+      - "community 65001:100"
+  - name: "STATIC-TO-BGP-EDGE"
+    action: permit
+    sequence: 10
+    match:
+      - "ip address prefix-list STATIC-NETWORKS"
+    set:
+      - "metric 200"
+      - "local-preference 200"
+      - "community 65001:200"
+  - name: "{{ external_asn }}-IN"
+    action: permit
+    sequence: 10
+    match:
+      - "as-path {{ external_asn }}-AS-PATH"
+    set:
+      - "local-preference 50"
+      - "metric 500"
+      - "community 65001:{{ external_asn }}"
+  - name: "{{ bgp_asn }}-OUT"
+    action: permit
+    sequence: 10
+    match:
+      - "ip address prefix-list ADVERTISE-TO-EXTERNAL"
+    set:
+      - "metric 100"
+      - "community 65001:{{ external_asn }}"
+  - name: "OSPF-DEFAULT-ROUTE"
+    action: permit
+    sequence: 10
+    set:
+      - "metric 1"
+      - "metric-type type-1"
+      - "tag 100"
+
+# AS-Path Access Lists
+as_path_access_lists:
+  - name: "{{ external_asn }}-AS-PATH"
+    entries:
+      - seq: 10
+        action: permit
+        regex: "^{{ external_asn }}_"
+      - seq: 20
+        action: permit
+        regex: "^{{ external_asn }} [0-9]+$"
+      - seq: 30
+        action: deny
+        regex: ".*"
+
+# Prefix Lists for Edge Layer
+prefix_lists:
+  - name: "INTERNAL-NETWORKS"
+    entries:
+      - seq: 5
+        action: permit
+        network: "10.0.0.0/8"
+        le: 24
+      - seq: 10
+        action: permit
+        network: "172.16.0.0/12"
+        le: 24
+      - seq: 15
+        action: permit
+        network: "192.168.0.0/16"
+        le: 24
+  - name: "STATIC-NETWORKS"
+    entries:
+      - seq: 5
+        action: permit
+        network: "0.0.0.0/0"
+      - seq: 10
+        action: permit
+        network: "{{ public_network | default('203.0.113.0/24') }}"
+  - name: "ADVERTISE-TO-EXTERNAL"
+    entries:
+      - seq: 5
+        action: permit
+        network: "10.0.0.0/16"
+      - seq: 10
+        action: permit
+        network: "{{ public_network | default('203.0.113.0/24') }}"
+
+# Interface Configuration for Edge Layer
+interfaces:
+  loopback:
+    - id: 0
+      ip: "{{ router_id }}"
+      mask: "255.255.255.255"
+      description: "Router ID and BGP Update Source"
+  ethernet:
+    - id: "0/0"
+      description: "Uplink to Distribution Router"
+      ip: "10.{{ ospf_area }}.10.{{ ansible_host.split('.')[3] }}"
+      mask: "255.255.255.252"
+      ospf_area: "{{ ospf_area }}"
+      ospf_cost: 10
+      ospf_priority: 0
+    - id: "0/1"
+      description: "External BGP Peer - {{ peer_type | title }}"
+      ip: "{{ external_interface_ip | default('192.168.100.2') }}"
+      mask: "255.255.255.252"
+      no_ip_redirects: yes
+      no_ip_proxy_arp: yes
+    - id: "0/2"
+      description: "DMZ Network"
+      ip: "{{ dmz_interface_ip | default('172.16.1.1') }}"
+      mask: "255.255.255.0"
+      access_group:
+        in: "DMZ-IN"
+        out: "DMZ-OUT"
+
+# Static Routes for Edge Layer
+static_routes:
+  - destination: "0.0.0.0"
+    mask: "0.0.0.0"
+    next_hop: "{{ external_default_gateway | default('192.168.100.1') }}"
+    name: "Default Route to External Peer"
+    tag: 100
+    administrative_distance: 1
+  - destination: "{{ public_network | default('203.0.113.0') }}"
+    mask: "255.255.255.0"
+    next_hop: "Null0"
+    name: "Public Network Aggregate"
+    tag: 200
+
+# Security Configuration for Edge Layer
+security:
+  enable_secret: "{{ vault_cisco_enable_password }}"
+  local_users:
+    - username: "{{ vault_cisco_username }}"
+      password: "{{ vault_cisco_password }}"
+      privilege: 15
+      secret: "{{ vault_cisco_user_secret }}"
+  aaa:
+    new_model: yes
+    authentication:
+      login: "default group tacacs+ local"
+      enable: "default group tacacs+ enable"
+    authorization:
+      exec: "default group tacacs+ local"
+      commands: "15 default group tacacs+ local"
+  tacacs:
+    server: "{{ vault_tacacs_server }}"
+    key: "{{ vault_tacacs_key }}"
+    timeout: 5
+    retransmit: 3
+
+# Access Control Lists for Edge Layer
+access_lists:
+  - name: "DMZ-IN"
+    type: extended
+    entries:
+      - seq: 10
+        action: permit
+        protocol: tcp
+        source: "any"
+        destination: "172.16.1.0 0.0.0.255"
+        destination_port: "eq 80"
+      - seq: 20
+        action: permit
+        protocol: tcp
+        source: "any"
+        destination: "172.16.1.0 0.0.0.255"
+        destination_port: "eq 443"
+      - seq: 30
+        action: permit
+        protocol: tcp
+        source: "any"
+        destination: "172.16.1.0 0.0.0.255"
+        destination_port: "eq 22"
+        established: yes
+      - seq: 40
+        action: deny
+        protocol: ip
+        source: "any"
+        destination: "any"
+        log: yes
+  - name: "DMZ-OUT"
+    type: extended
+    entries:
+      - seq: 10
+        action: permit
+        protocol: tcp
+        source: "172.16.1.0 0.0.0.255"
+        destination: "any"
+        destination_port: "eq 80"
+      - seq: 20
+        action: permit
+        protocol: tcp
+        source: "172.16.1.0 0.0.0.255"
+        destination: "any"
+        destination_port: "eq 443"
+      - seq: 30
+        action: permit
+        protocol: tcp
+        source: "172.16.1.0 0.0.0.255"
+        destination: "any"
+        destination_port: "eq 22"
+      - seq: 40
+        action: deny
+        protocol: ip
+        source: "any"
+        destination: "any"
+        log: yes
+
+# NTP Configuration
+ntp:
+  servers:
+    - ip: "{{ vault_ntp_server_primary }}"
+      version: 4
+      prefer: yes
+    - ip: "{{ vault_ntp_server_secondary }}"
+      version: 4
+  timezone: "PST -8"
+  summer_time: "PDT recurring"
+
+# SNMP Configuration for Edge Layer
+snmp:
+  communities:
+    - name: "{{ vault_snmp_ro_community }}"
+      permission: ro
+      acl: "SNMP-RO-ACL"
+    - name: "{{ vault_snmp_rw_community }}"
+      permission: rw
+      acl: "SNMP-RW-ACL"
+  contact: "Network Operations <netops@company.com>"
+  location: "Edge Layer - {{ peer_type | title }} Peer"
+  trap_source: "Loopback0"
+  traps:
+    - "snmp authentication linkdown linkup"
+    - "ospf state-change"
+    - "bgp"
+
+# Logging Configuration
+logging:
+  buffered: 8192
+  console: "warnings"
+  monitor: "warnings"
+  trap: "informational"
+  facility: "local7"
+  source_interface: "Loopback0"
+  hosts:
+    - ip: "{{ vault_syslog_server }}"
+      facility: "local7"
+      level: "informational"
+
+# Quality of Service for Edge Layer
+qos:
+  policy_maps:
+    - name: "EDGE-QOS-OUT"
+      class_maps:
+        - name: "VOICE"
+          priority: 256
+          police: "256k conform-action transmit exceed-action drop"
+        - name: "VIDEO"
+          bandwidth: "percent 30"
+          random_detect: yes
+        - name: "CRITICAL-DATA"
+          bandwidth: "percent 40"
+          random_detect: yes
+        - name: "BEST-EFFORT"
+          bandwidth: "percent 25"
+          random_detect: yes
+  class_maps:
+    - name: "VOICE"
+      match: "dscp ef"
+    - name: "VIDEO"
+      match: "dscp af41 af42 af43"
+    - name: "CRITICAL-DATA"
+      match: "dscp af31 af32 af33"
+    - name: "BEST-EFFORT"
+      match: "dscp default"
+EOF < /dev/null

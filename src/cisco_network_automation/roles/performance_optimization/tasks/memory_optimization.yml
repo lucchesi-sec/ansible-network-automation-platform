@@ -1,0 +1,42 @@
+---
+# Memory Optimization Tasks
+# Configures memory optimization settings
+
+- name: Configure memory reservation settings
+  cisco.ios.ios_config:
+    lines:
+      - memory reserve critical {{ memory_optimization.memory_reserve_critical }}
+      - memory reserve console {{ memory_optimization.memory_reserve_console }}
+      - memory free low-watermark processor {{ memory_optimization.memory_free_low_watermark }}
+    match: line
+
+- name: Configure buffer sizes
+  cisco.ios.ios_config:
+    lines:
+      - buffers small size {{ memory_optimization.buffer_small_size }}
+      - buffers middle size {{ memory_optimization.buffer_middle_size }}
+      - buffers big size {{ memory_optimization.buffer_big_size }}
+      - buffers huge size {{ memory_optimization.buffer_huge_size }}
+    match: line
+
+- name: Configure memory debugging
+  cisco.ios.ios_config:
+    lines:
+      - no debug all
+      - no logging console
+      - logging buffered 32768 warnings
+    match: line
+
+- name: Configure memory leak detection
+  cisco.ios.ios_config:
+    lines:
+      - memory sanity-check
+      - memory free low-watermark processor {{ memory_optimization.memory_free_low_watermark }}
+    match: line
+
+- name: Configure garbage collection
+  cisco.ios.ios_config:
+    lines:
+      - memory-size iomem 10
+    match: line
+  when: ansible_network_os == "ios"

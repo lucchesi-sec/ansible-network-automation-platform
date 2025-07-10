@@ -1,0 +1,30 @@
+---
+# Security Hardening Tasks
+# Implements security-first principles for network devices
+
+- name: Include user authentication hardening
+  include_tasks: user_auth.yml
+  
+- name: Include password policy enforcement
+  include_tasks: password_policy.yml
+  
+- name: Include SSH hardening
+  include_tasks: ssh_hardening.yml
+  
+- name: Include SNMP security
+  include_tasks: snmp_security.yml
+  
+- name: Include service hardening
+  include_tasks: service_hardening.yml
+  
+- name: Include logging and monitoring
+  include_tasks: logging_monitoring.yml
+  
+- name: Include access control
+  include_tasks: access_control.yml
+  
+- name: Include banner configuration
+  include_tasks: banner_config.yml
+  
+- name: Verify security configuration
+  include_tasks: verify_security.yml

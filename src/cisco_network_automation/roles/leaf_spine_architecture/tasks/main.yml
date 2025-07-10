@@ -1,0 +1,34 @@
+---
+# Leaf-Spine Architecture Role - Main Tasks
+# Configures the base leaf-spine fabric topology for data center networking
+
+- name: Include leaf-spine architecture variables
+  include_vars: main.yml
+
+- name: Configure leaf switch base settings
+  include_tasks: leaf_switch_config.yml
+  when: datacenter_role == 'leaf'
+
+- name: Configure spine switch base settings
+  include_tasks: spine_switch_config.yml
+  when: datacenter_role == 'spine'
+
+- name: Configure fabric underlay network
+  include_tasks: underlay_network_config.yml
+
+- name: Configure BGP for leaf-spine fabric
+  include_tasks: bgp_fabric_config.yml
+
+- name: Configure OSPF for underlay routing
+  include_tasks: ospf_underlay_config.yml
+
+- name: Configure multicast for overlay support
+  include_tasks: multicast_config.yml
+  when: vxlan_enabled | bool
+
+- name: Validate leaf-spine architecture deployment
+  include_tasks: validate_fabric.yml
+
+- name: Generate fabric topology documentation
+  include_tasks: generate_topology_doc.yml
+  when: generate_documentation | default(true) | bool

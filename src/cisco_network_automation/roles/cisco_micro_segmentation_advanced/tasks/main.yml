@@ -1,0 +1,79 @@
+---
+# Advanced Micro-Segmentation Implementation
+# Implements advanced micro-segmentation with dynamic policy enforcement
+
+- name: Enable advanced micro-segmentation
+  cisco.ios.ios_config:
+    lines:
+      - micro-segmentation enable
+      - micro-segmentation mode advanced
+      - micro-segmentation default-action {{ micro_segmentation_default }}
+      - micro-segmentation dynamic-policy enabled
+    parents: configure terminal
+
+- name: Configure security zones
+  cisco.ios.ios_config:
+    lines:
+      - micro-segment zone {{ item.name }}
+      - description {{ item.description }}
+      - trust-level {{ item.trust_level }}
+      - isolation-level {{ item.isolation_level }}
+      - security-classification {{ item.security_class }}
+    parents: configure terminal
+  loop: "{{ security_zones | default([]) }}"
+
+- name: Configure micro-segmentation policies
+  cisco.ios.ios_config:
+    lines:
+      - micro-segment policy {{ item.name }}
+      - source-zone {{ item.source_zone }}
+      - destination-zone {{ item.destination_zone }}
+      - action {{ item.action }}
+      - inspection {{ item.inspection | default('enabled') }}
+      - logging {{ item.logging | default('enabled') }}
+      - priority {{ item.priority | default(100) }}
+    parents: configure terminal
+  loop: "{{ microsegmentation_policies | default([]) }}"
+
+- name: Configure tenant isolation
+  cisco.ios.ios_config:
+    lines:
+      - micro-segment tenant {{ item.name }}
+      - vrf {{ item.vrf }}
+      - isolation strict
+      - inter-tenant-communication {{ item.inter_tenant | default('deny') }}
+      - shared-services {{ item.shared_services | default('restricted') }}
+    parents: configure terminal
+  loop: "{{ tenant_segments | default([]) }}"
+
+- name: Configure application-level segmentation
+  cisco.ios.ios_config:
+    lines:
+      - micro-segment application {{ item.name }}
+      - classification {{ item.classification }}
+      - ports {{ item.ports | join(',') }}
+      - protocols {{ item.protocols | join(',') }}
+      - security-group {{ item.security_group }}
+    parents: configure terminal
+  loop: "{{ application_segments | default([]) }}"
+
+- name: Enable micro-segmentation monitoring
+  cisco.ios.ios_config:
+    lines:
+      - micro-segmentation monitoring enable
+      - micro-segmentation flow-tracking enabled
+      - micro-segmentation analytics enabled
+      - micro-segmentation reporting enabled
+    parents: configure terminal
+
+- name: Verify micro-segmentation configuration
+  cisco.ios.ios_command:
+    commands:
+      - show micro-segmentation status
+      - show micro-segmentation policies
+      - show micro-segmentation zones
+  register: microseg_status
+
+- name: Display micro-segmentation status
+  debug:
+    var: microseg_status.stdout_lines

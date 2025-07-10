@@ -1,0 +1,119 @@
+---
+# Zero Trust Security & AI Automation Infrastructure Inventory
+
+all:
+  children:
+    # Zero Trust Security Infrastructure
+    zero_trust_controllers:
+      hosts:
+        zt-ctrl-01:
+          ansible_host: 10.0.5.10
+          router_id: 10.0.5.10
+          device_role: zero_trust_controller
+          trust_zone: security
+          cluster_member: primary
+        zt-ctrl-02:
+          ansible_host: 10.0.5.11
+          router_id: 10.0.5.11
+          device_role: zero_trust_controller
+          trust_zone: security
+          cluster_member: secondary
+
+    identity_switches:
+      hosts:
+        id-sw-01:
+          ansible_host: 10.0.6.10
+          device_role: identity_switch
+          trust_zone: identity
+          identity_source: active_directory
+        id-sw-02:
+          ansible_host: 10.0.6.11
+          device_role: identity_switch
+          trust_zone: identity
+          identity_source: radius
+
+    microsegmentation_switches:
+      hosts:
+        ms-sw-01:
+          ansible_host: 10.0.7.10
+          device_role: microsegmentation_switch
+          trust_zone: microsegmentation
+          segment_enforcement: strict
+        ms-sw-02:
+          ansible_host: 10.0.7.11
+          device_role: microsegmentation_switch
+          trust_zone: microsegmentation
+          segment_enforcement: strict
+
+    perimeter_routers:
+      hosts:
+        perim-rtr-01:
+          ansible_host: 10.0.8.10
+          router_id: 10.0.8.10
+          device_role: perimeter_router
+          trust_zone: perimeter
+          sdp_gateway: true
+        perim-rtr-02:
+          ansible_host: 10.0.8.11
+          router_id: 10.0.8.11
+          device_role: perimeter_router
+          trust_zone: perimeter
+          sdp_gateway: true
+
+    verification_appliances:
+      hosts:
+        verify-01:
+          ansible_host: 10.0.9.10
+          device_role: verification_appliance
+          trust_zone: verification
+          verification_methods: 
+            - device_posture
+            - user_behavior
+        verify-02:
+          ansible_host: 10.0.9.11
+          device_role: verification_appliance
+          trust_zone: verification
+          verification_methods:
+            - traffic_analysis
+            - risk_scoring
+
+    # AI Automation Infrastructure
+    automation_controllers:
+      hosts:
+        auto-ctrl-01:
+          ansible_host: 10.0.10.10
+          device_role: automation_controller
+          ai_zone: automation
+          ml_models:
+            - traffic_prediction
+            - anomaly_detection
+        auto-ctrl-02:
+          ansible_host: 10.0.10.11
+          device_role: automation_controller
+          ai_zone: automation
+          ml_models:
+            - performance_optimization
+            - security_threat_detection
+
+    analytics_engines:
+      hosts:
+        analytics-01:
+          ansible_host: 10.0.11.10
+          device_role: analytics_engine
+          ai_zone: analytics
+          analytics_type: predictive
+        analytics-02:
+          ansible_host: 10.0.11.11
+          device_role: analytics_engine
+          ai_zone: analytics
+          analytics_type: behavioral
+
+  vars:
+    ansible_connection: network_cli
+    ansible_network_os: ios
+    ansible_user: "{{ vault_cisco_username }}"
+    ansible_password: "{{ vault_cisco_password }}"
+    ansible_become: yes
+    ansible_become_method: enable
+    ansible_become_password: "{{ vault_cisco_enable_password }}"
+    ansible_python_interpreter: /usr/bin/python3

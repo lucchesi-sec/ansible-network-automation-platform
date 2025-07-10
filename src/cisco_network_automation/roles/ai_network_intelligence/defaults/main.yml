@@ -1,0 +1,82 @@
+---
+# AI Network Intelligence - Default Variables
+# Consolidated defaults for AI optimization and automation controller
+
+# Feature Toggles
+ai_optimization_enabled: true
+automation_controller_enabled: true
+
+# AI Optimization Settings
+ai_optimization_mode: adaptive
+bandwidth_utilization_threshold: 80
+cpu_utilization_threshold: 75
+memory_utilization_threshold: 80
+
+# Machine Learning Models (from group_vars/all.yml)
+# machine_learning_models:
+#   - traffic_prediction
+#   - anomaly_detection
+#   - performance_optimization
+#   - security_threat_detection
+
+# Automation Controller Settings
+automation_controller_ip: "{{ automation_controller_cluster[0] | default('10.0.2.10') }}"
+automation_controller_port: 8443
+automation_controller_username: "{{ vault_automation_username | default('automation_admin') }}"
+automation_controller_password: "{{ vault_automation_password }}"
+automation_controller_timeout: 30
+
+# Automation API Settings
+automation_api_auth: certificate
+automation_api_ssl_cert: "{{ vault_automation_ssl_cert | default('/etc/ssl/automation.crt') }}"
+automation_api_ssl_key: "{{ vault_automation_ssl_key | default('/etc/ssl/automation.key') }}"
+automation_api_acl: automation_mgmt
+
+# Telemetry Configuration
+automation_telemetry_collector: "{{ automation_controller_cluster[0] | default('10.0.2.10') }}"
+automation_telemetry_interval: 60
+automation_telemetry_format: json
+
+# Logging Configuration
+automation_log_level: informational
+automation_log_facility: local6
+automation_log_buffer_size: 4096
+
+# Default Automation Policies
+automation_policies:
+  - name: bandwidth_optimization
+    description: "Automatic bandwidth optimization based on traffic patterns"
+    trigger: bandwidth_threshold_exceeded
+    action: optimize_traffic_shaping
+    severity: medium
+    notification: enabled
+  - name: latency_mitigation
+    description: "Automatic latency mitigation for critical applications"
+    trigger: latency_threshold_exceeded
+    action: reroute_critical_traffic
+    severity: high
+    notification: enabled
+  - name: security_response
+    description: "Automated security threat response"
+    trigger: security_anomaly_detected
+    action: isolate_and_analyze
+    severity: critical
+    notification: immediate
+
+# Default Automation Scripts
+automation_scripts:
+  - name: traffic_analyzer
+    language: python
+    source: /opt/automation/scripts/traffic_analyzer.py
+    parameters: "--mode=realtime --interval=60"
+    execution_mode: continuous
+  - name: performance_optimizer
+    language: python
+    source: /opt/automation/scripts/performance_optimizer.py
+    parameters: "--targets=bandwidth,latency,throughput"
+    execution_mode: scheduled
+  - name: security_monitor
+    language: python
+    source: /opt/automation/scripts/security_monitor.py
+    parameters: "--sensitivity=high --response=automatic"
+    execution_mode: continuous

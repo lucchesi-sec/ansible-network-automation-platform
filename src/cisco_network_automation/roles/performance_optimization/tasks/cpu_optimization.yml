@@ -1,0 +1,46 @@
+---
+# CPU Optimization Tasks
+# Configures CPU optimization settings
+
+- name: Configure process priority settings
+  cisco.ios.ios_config:
+    lines:
+      - process cpu threshold type total rising {{ cpu_optimization.process_max_time }} interval 5
+      - scheduler interval {{ cpu_optimization.scheduler_interval }}
+      - scheduler allocate {{ cpu_optimization.scheduler_allocate }} 1000
+    match: line
+
+- name: Configure high priority processes
+  cisco.ios.ios_config:
+    lines:
+      - process cpu priority high {{ item }}
+    match: line
+  loop: "{{ cpu_optimization.process_priority_high }}"
+
+- name: Configure normal priority processes
+  cisco.ios.ios_config:
+    lines:
+      - process cpu priority normal {{ item }}
+    match: line
+  loop: "{{ cpu_optimization.process_priority_normal }}"
+
+- name: Configure low priority processes
+  cisco.ios.ios_config:
+    lines:
+      - process cpu priority low {{ item }}
+    match: line
+  loop: "{{ cpu_optimization.process_priority_low }}"
+
+- name: Configure CPU thresholds
+  cisco.ios.ios_config:
+    lines:
+      - process cpu threshold type interrupt rising 80 interval 5
+      - process cpu threshold type process rising 80 interval 5
+    match: line
+
+- name: Configure CPU monitoring
+  cisco.ios.ios_config:
+    lines:
+      - snmp-server enable traps cpu threshold
+      - cpu-threshold notification class process size 5 rising 80 interval 30
+    match: line

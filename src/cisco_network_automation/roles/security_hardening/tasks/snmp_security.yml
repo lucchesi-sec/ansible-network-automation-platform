@@ -1,0 +1,49 @@
+---
+# SNMP Security Tasks
+# Secures SNMP configuration and access
+
+- name: Remove default SNMP communities
+  ios_config:
+    lines:
+      - no snmp-server community public
+      - no snmp-server community private
+      
+- name: Configure secure SNMP communities
+  ios_config:
+    lines:
+      - snmp-server community {{ item.community }} {{ item.permission }} {{ item.acl | default('') }}
+    no_log: true
+  loop: "{{ secure_snmp_communities }}"
+  when: secure_snmp_communities is defined
+  
+- name: Configure SNMPv3 users
+  ios_config:
+    lines:
+      - snmp-server user {{ item.username }} {{ item.group }} v3 auth {{ item.auth_protocol }} {{ item.auth_password }} priv {{ item.priv_protocol }} {{ item.priv_password }}
+    no_log: true
+  loop: "{{ snmpv3_users }}"
+  when: snmpv3_users is defined
+  
+- name: Configure SNMPv3 groups
+  ios_config:
+    lines:
+      - snmp-server group {{ item.group }} v3 {{ item.security_level }} access {{ item.access_list | default('') }}
+  loop: "{{ snmpv3_groups }}"
+  when: snmpv3_groups is defined
+  
+- name: Configure SNMP security settings
+  ios_config:
+    lines:
+      - snmp-server enable traps
+      - snmp-server trap-source {{ snmp_trap_source }}
+      - snmp-server host {{ item.host }} version {{ item.version }} {{ item.community }}
+    no_log: true
+  loop: "{{ snmp_trap_hosts }}"
+  when: snmp_trap_hosts is defined
+  
+- name: Configure SNMP view restrictions
+  ios_config:
+    lines:
+      - snmp-server view {{ item.view_name }} {{ item.oid }} {{ item.type }}
+  loop: "{{ snmp_views }}"
+  when: snmp_views is defined

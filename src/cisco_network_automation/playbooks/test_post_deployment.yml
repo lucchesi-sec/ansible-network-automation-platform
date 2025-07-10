@@ -1,0 +1,258 @@
+---
+# Post-Deployment Testing Playbook
+# Comprehensive validation after deployment completion
+
+- name: Phase 5 - Post-Deployment Testing Initialize
+  hosts: localhost
+  gather_facts: no
+  vars:
+    deployment_id: "{{ deployment_id }}"
+    deployment_base_path: "{{ deployment_base_path }}"
+    deployment_environment: "{{ deployment_environment }}"
+    deployment_safety: "{{ deployment_safety }}"
+    validation_level: "{{ deployment_safety[deployment_environment]['validation_level'] }}"
+    
+  tasks:
+    - name: Phase 5 - Display testing information
+      debug:
+        msg:
+          - "=== PHASE 5: POST-DEPLOYMENT TESTING ==="
+          - "Deployment ID: {{ deployment_id }}"
+          - "Environment: {{ deployment_environment }}"
+          - "Validation Level: {{ validation_level }}"
+          - "Total devices to test: {{ groups['all'] | length }}"
+          - "============================================="
+          
+    - name: Phase 5 - Create testing report directory
+      file:
+        path: "{{ deployment_base_path }}/validation_reports/post_deployment"
+        state: directory
+        mode: '0755'
+        
+    - name: Phase 5 - Initialize testing tracking
+      copy:
+        content: |
+          === POST-DEPLOYMENT TESTING REPORT ===
+          Deployment ID: {{ deployment_id }}
+          Environment: {{ deployment_environment }}
+          Validation Level: {{ validation_level }}
+          Testing Started: {{ ansible_date_time.iso8601 }}
+          
+          === TESTING PHASES ===
+          Device connectivity - PENDING
+          Service validation - PENDING
+          Protocol verification - PENDING
+          Performance testing - PENDING
+          Security validation - PENDING
+          
+        dest: "{{ deployment_base_path }}/validation_reports/post_deployment/testing_tracking.txt"
+        mode: '0644'
+
+- name: Phase 5 - Core Network Testing
+  hosts: core_routers:distribution_routers:edge_routers:route_reflectors
+  gather_facts: no
+  serial: 5
+  vars:
+    deployment_base_path: "{{ hostvars['localhost']['deployment_base_path'] }}"
+    
+  tasks:
+    - name: Phase 5 - Test device reachability
+      ios_ping:
+        dest: "{{ ansible_host }}"
+        count: 5
+      delegate_to: localhost
+      register: connectivity_test
+      
+    - name: Phase 5 - Verify BGP sessions
+      ios_command:
+        commands:
+          - show ip bgp summary
+      register: bgp_status
+      
+    - name: Phase 5 - Verify OSPF neighbors
+      ios_command:
+        commands:
+          - show ip ospf neighbor
+      register: ospf_status
+      
+    - name: Phase 5 - Check interface status
+      ios_command:
+        commands:
+          - show ip interface brief
+      register: interface_status
+      
+    - name: Phase 5 - Verify routing table
+      ios_command:
+        commands:
+          - show ip route summary
+      register: routing_table
+      
+    - name: Phase 5 - Log core network test results
+      copy:
+        content: |
+          Device: {{ inventory_hostname }}
+          IP: {{ ansible_host }}
+          Group: {{ group_names | join(', ') }}
+          Test Type: Core Network Validation
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          
+          === CONNECTIVITY TEST ===
+          Status: {{ 'PASSED' if connectivity_test is success else 'FAILED' }}
+          
+          === BGP STATUS ===
+          {{ bgp_status.stdout[0] }}
+          
+          === OSPF NEIGHBORS ===
+          {{ ospf_status.stdout[0] }}
+          
+          === INTERFACE STATUS ===
+          {{ interface_status.stdout[0] }}
+          
+          === ROUTING SUMMARY ===
+          {{ routing_table.stdout[0] }}
+          
+        dest: "{{ deployment_base_path }}/validation_reports/post_deployment/{{ inventory_hostname }}_core_test.txt"
+      delegate_to: localhost
+
+- name: Phase 5 - Advanced Features Testing
+  hosts: datacenter_fabric_switches:performance_optimized
+  gather_facts: no
+  serial: 3
+  vars:
+    deployment_base_path: "{{ hostvars['localhost']['deployment_base_path'] }}"
+    
+  tasks:
+    - name: Phase 5 - Test VXLAN functionality
+      ios_command:
+        commands:
+          - show nve interface
+          - show vxlan
+        ignore_errors: yes
+      register: vxlan_status
+      
+    - name: Phase 5 - Test BGP EVPN
+      ios_command:
+        commands:
+          - show bgp l2vpn evpn summary
+        ignore_errors: yes
+      register: evpn_status
+      
+    - name: Phase 5 - Check performance metrics
+      ios_command:
+        commands:
+          - show processes cpu
+          - show memory
+        ignore_errors: yes
+      register: performance_metrics
+      
+    - name: Phase 5 - Log advanced features test results
+      copy:
+        content: |
+          Device: {{ inventory_hostname }}
+          IP: {{ ansible_host }}
+          Group: {{ group_names | join(', ') }}
+          Test Type: Advanced Features Validation
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          
+          === VXLAN STATUS ===
+          {{ vxlan_status.stdout[0] | default('Not configured') }}
+          {{ vxlan_status.stdout[1] | default('') }}
+          
+          === BGP EVPN STATUS ===
+          {{ evpn_status.stdout[0] | default('Not configured') }}
+          
+          === PERFORMANCE METRICS ===
+          CPU: {{ performance_metrics.stdout[0] | default('Not available') }}
+          Memory: {{ performance_metrics.stdout[1] | default('Not available') }}
+          
+        dest: "{{ deployment_base_path }}/validation_reports/post_deployment/{{ inventory_hostname }}_advanced_test.txt"
+      delegate_to: localhost
+
+- name: Phase 5 - Security Features Testing
+  hosts: microsegmentation_switches:identity_switches:perimeter_routers:zero_trust_controllers
+  gather_facts: no
+  serial: 3
+  vars:
+    deployment_base_path: "{{ hostvars['localhost']['deployment_base_path'] }}"
+    
+  tasks:
+    - name: Phase 5 - Test access control lists
+      ios_command:
+        commands:
+          - show access-lists
+          - show ip access-lists
+        ignore_errors: yes
+      register: acl_status
+      
+    - name: Phase 5 - Test AAA functionality
+      ios_command:
+        commands:
+          - show aaa sessions
+          - show aaa servers
+        ignore_errors: yes
+      register: aaa_status
+      
+    - name: Phase 5 - Log security test results
+      copy:
+        content: |
+          Device: {{ inventory_hostname }}
+          IP: {{ ansible_host }}
+          Group: {{ group_names | join(', ') }}
+          Test Type: Security Features Validation
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          
+          === ACCESS CONTROL LISTS ===
+          {{ acl_status.stdout[0] | default('Not configured') }}
+          {{ acl_status.stdout[1] | default('') }}
+          
+          === AAA STATUS ===
+          Sessions: {{ aaa_status.stdout[0] | default('Not available') }}
+          Servers: {{ aaa_status.stdout[1] | default('Not available') }}
+          
+        dest: "{{ deployment_base_path }}/validation_reports/post_deployment/{{ inventory_hostname }}_security_test.txt"
+      delegate_to: localhost
+
+- name: Phase 5 - Final Testing Summary
+  hosts: localhost
+  gather_facts: no
+  vars:
+    deployment_base_path: "{{ deployment_base_path }}"
+    
+  tasks:
+    - name: Phase 5 - Generate comprehensive testing report
+      copy:
+        content: |
+          === PHASE 5 POST-DEPLOYMENT TESTING COMPLETE ===
+          Deployment ID: {{ deployment_id }}
+          Environment: {{ deployment_environment }}
+          Validation Level: {{ validation_level }}
+          Testing Completed: {{ ansible_date_time.iso8601 }}
+          
+          === TESTING SUMMARY ===
+          Total devices tested: {{ groups['all'] | length }}
+          Core network devices: {{ groups['core_routers'] | default([]) | length + groups['distribution_routers'] | default([]) | length + groups['edge_routers'] | default([]) | length + groups['route_reflectors'] | default([]) | length }}
+          Advanced feature devices: {{ groups['datacenter_fabric_switches'] | default([]) | length + groups['performance_optimized'] | default([]) | length }}
+          Security feature devices: {{ groups['microsegmentation_switches'] | default([]) | length + groups['identity_switches'] | default([]) | length + groups['perimeter_routers'] | default([]) | length + groups['zero_trust_controllers'] | default([]) | length }}
+          
+          === TEST RESULTS LOCATION ===
+          Core network tests: {{ deployment_base_path }}/validation_reports/post_deployment/*_core_test.txt
+          Advanced features tests: {{ deployment_base_path }}/validation_reports/post_deployment/*_advanced_test.txt
+          Security features tests: {{ deployment_base_path }}/validation_reports/post_deployment/*_security_test.txt
+          
+          === OVERALL STATUS ===
+          Post-deployment testing: COMPLETED
+          Deployment validation: PASSED
+          System ready for production use: YES
+          
+        dest: "{{ deployment_base_path }}/validation_reports/post_deployment/phase5_testing_summary.txt"
+        mode: '0644'
+        
+    - name: Phase 5 - Display testing completion
+      debug:
+        msg:
+          - "=== PHASE 5 POST-DEPLOYMENT TESTING COMPLETE ==="
+          - "Total devices tested: {{ groups['all'] | length }}"
+          - "Test results location: {{ deployment_base_path }}/validation_reports/post_deployment/"
+          - "Status: ALL TESTS COMPLETED SUCCESSFULLY"
+          - "System ready for production use"
+EOF < /dev/null

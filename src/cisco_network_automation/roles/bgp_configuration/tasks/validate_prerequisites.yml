@@ -1,0 +1,47 @@
+---
+# BGP Prerequisites Validation Tasks
+# Validates required variables and system state before BGP configuration
+
+- name: Validate BGP ASN is defined
+  assert:
+    that:
+      - bgp_asn is defined
+      - bgp_asn | string | length > 0
+    fail_msg: "BGP ASN must be defined"
+    success_msg: "BGP ASN validation passed"
+
+- name: Validate router ID is defined
+  assert:
+    that:
+      - router_id is defined
+      - router_id | string | length > 0
+    fail_msg: "Router ID must be defined"
+    success_msg: "Router ID validation passed"
+
+- name: Check if BGP neighbors are defined
+  set_fact:
+    bgp_neighbors_defined: "{{ (bgp_neighbors | default([])) | length > 0 }}"
+
+- name: Validate BGP neighbors configuration
+  assert:
+    that:
+      - item.neighbor_ip is defined
+      - item.remote_as is defined
+    fail_msg: "BGP neighbor {{ item.neighbor_ip | default('undefined') }} missing required configuration"
+    success_msg: "BGP neighbor {{ item.neighbor_ip }} validation passed"
+  loop: "{{ bgp_neighbors | default([]) }}"
+  when: bgp_neighbors_defined
+
+- name: Check current BGP configuration
+  ios_command:
+    commands:
+      - show running-config | section router bgp
+  register: current_bgp_config
+  failed_when: false
+
+- name: Display current BGP status
+  debug:
+    msg:
+      - "Current BGP configuration check completed"
+      - "BGP process exists: {{ 'router bgp' in current_bgp_config.stdout[0] }}"
+      - "Proceeding with BGP configuration"

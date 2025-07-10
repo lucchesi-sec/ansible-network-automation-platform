@@ -1,0 +1,62 @@
+---
+# Zero Trust Core - Role Metadata
+# Consolidated role combining zero trust policies and continuous verification
+
+galaxy_info:
+  author: Network Security Team
+  description: Zero Trust core policies and continuous verification
+  company: Enterprise Network Solutions
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: IOS
+      versions:
+        - all
+  galaxy_tags:
+    - networking
+    - cisco
+    - security
+    - zero_trust
+    - verification
+
+dependencies:
+  - role: cisco_router
+    when: "'routers' in group_names"
+  - role: security_hardening
+    when: security_hardening_enabled | default(true)
+  - role: micro_segmentation
+    when: "'microsegmentation_switches' in group_names"
+
+# Role consolidation metadata
+consolidates:
+  - cisco_zero_trust_policies
+  - cisco_continuous_verification
+  
+migration_notes: |
+  This role replaces cisco_zero_trust_policies and cisco_continuous_verification.
+  All functionality has been preserved and enhanced with better integration.
+  
+  Migrated features:
+  - Zero trust policy engine (access policies, micro-segmentation, certificate validation)
+  - Continuous verification engine (device posture, user behavior, traffic analysis, risk scoring)
+  - Identity source integration (Active Directory, RADIUS)
+  - Verification methods and responses
+  - Integrated logging and monitoring
+  
+  New features:
+  - Unified policy and verification management
+  - Enhanced validation with assertions
+  - Improved error handling with failed_when
+  - Tag-based task organization
+  - Consolidated logging configuration
+  
+security_compliance:
+  frameworks:
+    - NIST_SP_800_207  # Zero Trust Architecture
+    - ISO_27001
+    - SOC2_Type2
+  controls:
+    - identity_verification
+    - continuous_monitoring
+    - least_privilege_access
+    - micro_segmentation

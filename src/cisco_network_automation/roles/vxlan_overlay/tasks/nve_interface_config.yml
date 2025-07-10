@@ -1,0 +1,80 @@
+---
+# NVE Interface Configuration for VXLAN
+# Configures Network Virtualization Edge interfaces
+
+- name: Configure NVE interface for VXLAN overlay
+  cisco.ios.ios_config:
+    lines:
+      - interface nve1
+      - description VXLAN Network Virtualization Edge
+      - no shutdown
+      - source-interface loopback{{ vxlan_loopback_id }}
+      - host-reachability protocol bgp
+      - member vni {{ item.vni }}
+      - suppress-arp
+      - ingress-replication protocol bgp
+    parents: interface nve1
+    match: line
+  loop: "{{ vxlan_vni_list }}"
+  when: vxlan_vni_list is defined
+
+- name: Configure VXLAN source loopback interface
+  cisco.ios.ios_config:
+    lines:
+      - interface loopback{{ vxlan_loopback_id }}
+      - description VXLAN Source Loopback
+      - ip address {{ vxlan_source_ip }} {{ vxlan_source_mask }}
+      - ip ospf area {{ ospf_area }}
+    parents: interface loopback{{ vxlan_loopback_id }}
+    match: line
+
+- name: Configure VXLAN VNI to VLAN mapping
+  cisco.ios.ios_config:
+    lines:
+      - vlan {{ item.vlan_id }}
+      - name {{ item.vlan_name }}
+      - vn-segment {{ item.vni }}
+    parents: vlan {{ item.vlan_id }}
+    match: line
+  loop: "{{ vxlan_vni_vlan_mapping }}"
+  when: vxlan_vni_vlan_mapping is defined
+
+- name: Configure VXLAN VRF instances for multi-tenancy
+  cisco.ios.ios_config:
+    lines:
+      - vrf definition {{ item.vrf_name }}
+      - description {{ item.description }}
+      - rd {{ item.rd }}
+      - address-family ipv4 unicast
+      - route-target export {{ item.rt_export }}
+      - route-target import {{ item.rt_import }}
+      - exit-address-family
+      - address-family l2vpn evpn
+      - route-target export {{ item.rt_export }}
+      - route-target import {{ item.rt_import }}
+      - exit-address-family
+    parents: vrf definition {{ item.vrf_name }}
+    match: line
+  loop: "{{ vxlan_vrf_instances }}"
+  when: vxlan_vrf_instances is defined
+
+- name: Configure VXLAN SVI interfaces for tenant networks
+  cisco.ios.ios_config:
+    lines:
+      - interface vlan{{ item.vlan_id }}
+      - description {{ item.description }}
+      - vrf forwarding {{ item.vrf_name }}
+      - ip address {{ item.ip_address }} {{ item.subnet_mask }}
+      - fabric forwarding mode anycast-gateway
+      - no shutdown
+    parents: interface vlan{{ item.vlan_id }}
+    match: line
+  loop: "{{ vxlan_svi_interfaces }}"
+  when: vxlan_svi_interfaces is defined
+
+- name: Configure VXLAN anycast gateway MAC
+  cisco.ios.ios_config:
+    lines:
+      - fabric forwarding anycast-gateway-mac {{ vxlan_anycast_gateway_mac }}
+    match: line
+  when: vxlan_anycast_gateway_mac is defined

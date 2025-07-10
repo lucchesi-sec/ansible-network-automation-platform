@@ -1,0 +1,64 @@
+---
+# Congestion Management Tasks
+# Configures congestion management policies
+
+- name: Configure WRED (Weighted Random Early Detection)
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - random-detect dscp-based
+      - random-detect dscp {{ item.dscp }} {{ item.min_threshold }} {{ item.max_threshold }} {{ item.mark_probability }}
+    match: line
+  loop: "{{ wred_policies }}"
+  when: wred_policies is defined
+
+- name: Configure Custom Queue Lists
+  cisco.ios.ios_config:
+    lines:
+      - queue-list {{ item.list_number }} protocol {{ item.protocol }} {{ item.queue_number }} list {{ item.acl_number }}
+      - queue-list {{ item.list_number }} queue {{ item.queue_number }} byte-count {{ item.byte_count }}
+      - queue-list {{ item.list_number }} queue {{ item.queue_number }} limit {{ item.queue_limit }}
+    match: line
+  loop: "{{ custom_queue_lists }}"
+  when: custom_queue_lists is defined
+
+- name: Configure Priority Queue Lists
+  cisco.ios.ios_config:
+    lines:
+      - priority-list {{ item.list_number }} protocol {{ item.protocol }} {{ item.priority_level }} list {{ item.acl_number }}
+      - priority-list {{ item.list_number }} queue-limit {{ item.queue_limit }}
+    match: line
+  loop: "{{ priority_queue_lists }}"
+  when: priority_queue_lists is defined
+
+- name: Apply Custom Queuing to interfaces
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - custom-queue-list {{ item.list_number }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ custom_queue_interfaces }}"
+  when: custom_queue_interfaces is defined
+
+- name: Apply Priority Queuing to interfaces
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - priority-group {{ item.list_number }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ priority_queue_interfaces }}"
+  when: priority_queue_interfaces is defined
+
+- name: Configure queue buffering
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - hold-queue {{ item.input_queue_size }} in
+      - hold-queue {{ item.output_queue_size }} out
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ queue_buffer_interfaces }}"
+  when: queue_buffer_interfaces is defined

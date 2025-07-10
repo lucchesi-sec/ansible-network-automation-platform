@@ -1,0 +1,73 @@
+---
+# Performance Optimized Group Variables
+# Performance tuning configuration for high-performance network devices
+
+# Performance profiles
+performance_profile: high_throughput
+default_performance_profile: balanced
+
+# CPU optimization settings
+cpu_optimization:
+  process_max_time: 200
+  scheduler_interval: 4000
+  scheduler_allocate: 16000
+  process_priority_high: ["IP Input", "IP Output", "TCP Timer"]
+  process_priority_normal: ["CEF Background", "ARP Input"]
+  process_priority_low: ["Exec"]
+
+# Memory optimization settings
+memory_optimization:
+  memory_reserve_critical: 10000
+  memory_reserve_console: 10000
+  memory_free_low_watermark: 5000
+  buffer_small_size: 104
+  buffer_middle_size: 600
+  buffer_big_size: 1524
+  buffer_huge_size: 18024
+
+# Interface optimization settings
+interface_optimization:
+  tx_ring_limit: 256
+  rx_ring_limit: 256
+  hold_queue_in: 1000
+  hold_queue_out: 1000
+  interface_dampening: true
+  carrier_delay: 2
+
+# TCP optimization settings
+tcp_optimization:
+  path_mtu_discovery: true
+  selective_ack: true
+  timestamp: true
+  window_scaling: true
+  synwait_time: 30
+  connection_timeout: 300
+
+# Hardware optimization settings
+hardware_optimization:
+  hardware_switching: true
+  ip_route_cache: true
+  ip_flow_cache: true
+  cef_enabled: true
+  cef_load_sharing: true
+  turbo_flood: true
+
+# QoS performance settings
+qos_performance:
+  hardware_qos: true
+  qos_scheduling_interval: 4
+  qos_queue_limit: 2048
+  qos_drop_threshold: 1024
+  qos_buffer_limit: 8192
+
+# Performance monitoring thresholds
+performance_monitoring:
+  cpu_threshold_major: 80
+  cpu_threshold_minor: 60
+  memory_threshold_major: 85
+  memory_threshold_minor: 70
+  interface_utilization_threshold: 80
+  error_rate_threshold: 0.01
+  packet_loss_threshold: 0.1
+  latency_threshold: 100
+  jitter_threshold: 50

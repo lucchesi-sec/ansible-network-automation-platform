@@ -1,0 +1,60 @@
+---
+# BGP Configuration Main Tasks
+# Enterprise BGP routing protocol configuration
+
+- name: Include BGP validation tasks
+  include_tasks: validate_prerequisites.yml
+  tags:
+    - bgp
+    - validation
+
+- name: Include BGP basic configuration
+  include_tasks: basic_bgp_config.yml
+  tags:
+    - bgp
+    - basic_config
+
+- name: Include BGP neighbor configuration
+  include_tasks: neighbor_config.yml
+  tags:
+    - bgp
+    - neighbors
+
+- name: Include BGP route maps and policies
+  include_tasks: route_policies.yml
+  tags:
+    - bgp
+    - policies
+
+- name: Include BGP route reflector configuration
+  include_tasks: route_reflector_config.yml
+  when: is_route_reflector | default(false)
+  tags:
+    - bgp
+    - route_reflector
+
+- name: Include BGP network advertisements
+  include_tasks: network_advertisement.yml
+  when: bgp_networks | length > 0
+  tags:
+    - bgp
+    - networks
+
+- name: Include BGP security configuration
+  include_tasks: security_config.yml
+  tags:
+    - bgp
+    - security
+
+- name: Save BGP configuration
+  ios_config:
+    save_when: modified
+  tags:
+    - bgp
+    - save
+
+- name: Include BGP verification tasks
+  include_tasks: verify_bgp.yml
+  tags:
+    - bgp
+    - verification

@@ -1,0 +1,441 @@
+---
+# Deploy Monitoring Infrastructure Components
+# Deploys core monitoring stack based on bounded context architecture
+
+- name: Create monitoring namespace and directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  loop:
+    - /opt/monitoring
+    - /opt/monitoring/prometheus
+    - /opt/monitoring/grafana
+    - /opt/monitoring/alertmanager
+    - /opt/monitoring/elasticsearch
+    - /opt/monitoring/logstash
+    - /opt/monitoring/kibana
+    - /opt/monitoring/kafka
+    - /opt/monitoring/configs
+    - /var/log/monitoring
+    - /var/lib/monitoring
+
+- name: Deploy Prometheus (Metrics Collection Domain)
+  block:
+    - name: Create Prometheus configuration
+      template:
+        src: prometheus.yml.j2
+        dest: /opt/monitoring/prometheus/prometheus.yml
+        mode: '0644'
+      notify: restart prometheus
+    
+    - name: Create Prometheus recording rules
+      template:
+        src: prometheus_rules.yml.j2
+        dest: /opt/monitoring/prometheus/rules.yml
+        mode: '0644'
+      notify: reload prometheus
+    
+    - name: Deploy Prometheus container
+      docker_container:
+        name: prometheus
+        image: "prom/prometheus:{{ metrics_collection.prometheus.version }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "9090:9090"
+        volumes:
+          - "/opt/monitoring/prometheus:/etc/prometheus"
+          - "/var/lib/monitoring/prometheus:/prometheus"
+        command:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus'
+          - '--storage.tsdb.retention.time={{ metrics_collection.prometheus.retention_time }}'
+          - '--web.console.libraries=/etc/prometheus/console_libraries'
+          - '--web.console.templates=/etc/prometheus/consoles'
+          - '--web.enable-lifecycle'
+          - '--web.enable-admin-api'
+        networks:
+          - name: monitoring
+        labels:
+          - "prometheus.io/scrape=true"
+          - "prometheus.io/port=9090"
+  when: metrics_collection.prometheus.enabled | bool
+
+- name: Deploy AlertManager (Alert Management Domain)
+  block:
+    - name: Create AlertManager configuration
+      template:
+        src: alertmanager.yml.j2
+        dest: /opt/monitoring/alertmanager/alertmanager.yml
+        mode: '0644'
+      notify: restart alertmanager
+    
+    - name: Deploy AlertManager container
+      docker_container:
+        name: alertmanager
+        image: "prom/alertmanager:{{ alert_management.alertmanager.version }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "9093:9093"
+        volumes:
+          - "/opt/monitoring/alertmanager:/etc/alertmanager"
+          - "/var/lib/monitoring/alertmanager:/alertmanager"
+        command:
+          - '--config.file=/etc/alertmanager/alertmanager.yml'
+          - '--storage.path=/alertmanager'
+          - '--web.external-url=http://{{ ansible_default_ipv4.address }}:9093'
+        networks:
+          - name: monitoring
+  when: alert_management.alertmanager.enabled | bool
+
+- name: Deploy Grafana (Visualization Domain)
+  block:
+    - name: Create Grafana configuration
+      template:
+        src: grafana.ini.j2
+        dest: /opt/monitoring/grafana/grafana.ini
+        mode: '0644'
+      notify: restart grafana
+    
+    - name: Create Grafana provisioning directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /opt/monitoring/grafana/provisioning
+        - /opt/monitoring/grafana/provisioning/datasources
+        - /opt/monitoring/grafana/provisioning/dashboards
+        - /opt/monitoring/grafana/provisioning/notifiers
+    
+    - name: Create Grafana datasource configuration
+      template:
+        src: grafana_datasources.yml.j2
+        dest: /opt/monitoring/grafana/provisioning/datasources/datasources.yml
+        mode: '0644'
+    
+    - name: Create Grafana dashboard provisioning
+      template:
+        src: grafana_dashboards.yml.j2
+        dest: /opt/monitoring/grafana/provisioning/dashboards/dashboards.yml
+        mode: '0644'
+    
+    - name: Deploy Grafana container
+      docker_container:
+        name: grafana
+        image: "grafana/grafana:{{ visualization.grafana.version }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "3000:3000"
+        volumes:
+          - "/opt/monitoring/grafana:/etc/grafana"
+          - "/var/lib/monitoring/grafana:/var/lib/grafana"
+        env:
+          GF_SECURITY_ADMIN_USER: "{{ visualization.grafana.admin_user }}"
+          GF_SECURITY_ADMIN_PASSWORD: "{{ visualization.grafana.admin_password }}"
+          GF_INSTALL_PLUGINS: "{{ visualization.grafana.plugins | join(',') }}"
+        networks:
+          - name: monitoring
+  when: visualization.grafana.enabled | bool
+
+- name: Deploy InfluxDB (High-cardinality Metrics)
+  block:
+    - name: Create InfluxDB configuration
+      template:
+        src: influxdb.conf.j2
+        dest: /opt/monitoring/influxdb/influxdb.conf
+        mode: '0644'
+      notify: restart influxdb
+    
+    - name: Deploy InfluxDB container
+      docker_container:
+        name: influxdb
+        image: "influxdb:{{ metrics_collection.influxdb.version }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "8086:8086"
+        volumes:
+          - "/opt/monitoring/influxdb:/etc/influxdb2"
+          - "/var/lib/monitoring/influxdb:/var/lib/influxdb2"
+        env:
+          DOCKER_INFLUXDB_INIT_MODE: setup
+          DOCKER_INFLUXDB_INIT_USERNAME: admin
+          DOCKER_INFLUXDB_INIT_PASSWORD: "{{ vault_influxdb_password }}"
+          DOCKER_INFLUXDB_INIT_ORG: "{{ metrics_collection.influxdb.org }}"
+          DOCKER_INFLUXDB_INIT_BUCKET: "{{ metrics_collection.influxdb.bucket }}"
+        networks:
+          - name: monitoring
+  when: metrics_collection.influxdb.enabled | bool
+
+- name: Deploy Elasticsearch (Log Processing Domain)
+  block:
+    - name: Create Elasticsearch configuration
+      template:
+        src: elasticsearch.yml.j2
+        dest: /opt/monitoring/elasticsearch/elasticsearch.yml
+        mode: '0644'
+      notify: restart elasticsearch
+    
+    - name: Set vm.max_map_count for Elasticsearch
+      sysctl:
+        name: vm.max_map_count
+        value: '262144'
+        state: present
+        reload: yes
+    
+    - name: Deploy Elasticsearch container
+      docker_container:
+        name: elasticsearch
+        image: "docker.elastic.co/elasticsearch/elasticsearch:{{ log_processing.elasticsearch.version }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "9200:9200"
+          - "9300:9300"
+        volumes:
+          - "/opt/monitoring/elasticsearch:/usr/share/elasticsearch/config"
+          - "/var/lib/monitoring/elasticsearch:/usr/share/elasticsearch/data"
+        env:
+          - "discovery.type=single-node"
+          - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+          - "xpack.security.enabled=false"
+        networks:
+          - name: monitoring
+        ulimits:
+          - "memlock:-1:-1"
+          - "nofile:65536:65536"
+  when: log_processing.elasticsearch.enabled | bool
+
+- name: Deploy Logstash (Log Processing Pipeline)
+  block:
+    - name: Create Logstash configuration directory
+      file:
+        path: /opt/monitoring/logstash/pipeline
+        state: directory
+        mode: '0755'
+    
+    - name: Create Logstash pipeline configuration
+      template:
+        src: logstash.conf.j2
+        dest: /opt/monitoring/logstash/pipeline/logstash.conf
+        mode: '0644'
+      notify: restart logstash
+    
+    - name: Create Logstash settings
+      template:
+        src: logstash.yml.j2
+        dest: /opt/monitoring/logstash/logstash.yml
+        mode: '0644'
+    
+    - name: Deploy Logstash container
+      docker_container:
+        name: logstash
+        image: "docker.elastic.co/logstash/logstash:{{ log_processing.logstash.version }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "5044:5044"  # Beats input
+          - "5514:5514"  # Syslog input
+          - "9600:9600"  # API
+        volumes:
+          - "/opt/monitoring/logstash:/usr/share/logstash/config"
+          - "/opt/monitoring/logstash/pipeline:/usr/share/logstash/pipeline"
+        env:
+          - "LS_JAVA_OPTS=-Xmx2g -Xms2g"
+        networks:
+          - name: monitoring
+        depends_on:
+          - elasticsearch
+  when: log_processing.logstash.enabled | bool
+
+- name: Deploy Kibana (Log Visualization)
+  block:
+    - name: Create Kibana configuration
+      template:
+        src: kibana.yml.j2
+        dest: /opt/monitoring/kibana/kibana.yml
+        mode: '0644'
+      notify: restart kibana
+    
+    - name: Deploy Kibana container
+      docker_container:
+        name: kibana
+        image: "docker.elastic.co/kibana/kibana:{{ log_processing.kibana.version }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "5601:5601"
+        volumes:
+          - "/opt/monitoring/kibana:/usr/share/kibana/config"
+        env:
+          - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
+        networks:
+          - name: monitoring
+        depends_on:
+          - elasticsearch
+  when: log_processing.kibana.enabled | bool
+
+- name: Deploy Kafka (Data Pipeline)
+  block:
+    - name: Deploy Zookeeper for Kafka
+      docker_container:
+        name: zookeeper
+        image: "confluentinc/cp-zookeeper:latest"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "2181:2181"
+        env:
+          ZOOKEEPER_CLIENT_PORT: 2181
+          ZOOKEEPER_TICK_TIME: 2000
+        networks:
+          - name: monitoring
+    
+    - name: Deploy Kafka container
+      docker_container:
+        name: kafka
+        image: "confluentinc/cp-kafka:latest"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "9092:9092"
+        env:
+          KAFKA_BROKER_ID: 1
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+        networks:
+          - name: monitoring
+        depends_on:
+          - zookeeper
+    
+    - name: Create Kafka topics
+      shell: |
+        docker exec kafka kafka-topics --create --topic {{ item.key }} \
+          --partitions {{ item.value.partitions }} \
+          --replication-factor {{ item.value.replication }} \
+          --bootstrap-server localhost:9092
+      loop: "{{ data_pipeline.kafka.topics | dict2items }}"
+      ignore_errors: yes
+  when: data_pipeline.kafka.enabled | bool
+
+- name: Deploy SNMP Exporter
+  block:
+    - name: Create SNMP Exporter configuration
+      template:
+        src: snmp_exporter.yml.j2
+        dest: /opt/monitoring/snmp_exporter/snmp.yml
+        mode: '0644'
+    
+    - name: Deploy SNMP Exporter container
+      docker_container:
+        name: snmp-exporter
+        image: "prom/snmp-exporter:{{ metrics_collection.snmp_exporter.version }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "9116:9116"
+        volumes:
+          - "/opt/monitoring/snmp_exporter:/etc/snmp_exporter"
+        command:
+          - '--config.file=/etc/snmp_exporter/snmp.yml'
+        networks:
+          - name: monitoring
+  when: metrics_collection.snmp_exporter.enabled | bool
+
+- name: Create monitoring network
+  docker_network:
+    name: monitoring
+    driver: bridge
+    ipam_config:
+      - subnet: "172.20.0.0/16"
+
+- name: Configure firewall rules for monitoring
+  firewalld:
+    port: "{{ item }}/tcp"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop:
+    - "3000"   # Grafana
+    - "9090"   # Prometheus
+    - "9093"   # AlertManager
+    - "9200"   # Elasticsearch
+    - "5601"   # Kibana
+    - "8086"   # InfluxDB
+    - "9116"   # SNMP Exporter
+  when: ansible_os_family == "RedHat"
+
+- name: Configure UFW rules for monitoring
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "3000"   # Grafana
+    - "9090"   # Prometheus
+    - "9093"   # AlertManager
+    - "9200"   # Elasticsearch
+    - "5601"   # Kibana
+    - "8086"   # InfluxDB
+    - "9116"   # SNMP Exporter
+  when: ansible_os_family == "Debian"
+
+- name: Create monitoring service accounts
+  user:
+    name: "{{ item }}"
+    system: yes
+    shell: /bin/false
+    home: "/var/lib/{{ item }}"
+    createhome: no
+  loop:
+    - prometheus
+    - grafana
+    - alertmanager
+
+- name: Set appropriate ownership for monitoring directories
+  file:
+    path: "{{ item.path }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    recurse: yes
+  loop:
+    - { path: "/var/lib/monitoring/prometheus", owner: "prometheus", group: "prometheus" }
+    - { path: "/var/lib/monitoring/grafana", owner: "grafana", group: "grafana" }
+    - { path: "/var/lib/monitoring/alertmanager", owner: "alertmanager", group: "alertmanager" }
+
+- name: Wait for services to be ready
+  wait_for:
+    host: "{{ ansible_default_ipv4.address }}"
+    port: "{{ item.port }}"
+    delay: 10
+    timeout: 300
+  loop:
+    - { service: "prometheus", port: 9090 }
+    - { service: "grafana", port: 3000 }
+    - { service: "alertmanager", port: 9093 }
+    - { service: "elasticsearch", port: 9200 }
+    - { service: "kibana", port: 5601 }
+  when: monitoring_enabled | bool
+
+- name: Verify monitoring infrastructure deployment
+  uri:
+    url: "http://{{ ansible_default_ipv4.address }}:{{ item.port }}{{ item.path | default('') }}"
+    method: GET
+    status_code: 200
+  loop:
+    - { service: "prometheus", port: 9090, path: "/-/healthy" }
+    - { service: "grafana", port: 3000, path: "/api/health" }
+    - { service: "alertmanager", port: 9093, path: "/-/healthy" }
+    - { service: "elasticsearch", port: 9200, path: "/_cluster/health" }
+  register: service_health_check
+  failed_when: service_health_check.status != 200
+  when: monitoring_enabled | bool

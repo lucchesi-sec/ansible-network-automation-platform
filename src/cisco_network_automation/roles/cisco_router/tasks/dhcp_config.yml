@@ -1,0 +1,45 @@
+---
+# DHCP Configuration Tasks
+# Configures DHCP server for internal network
+
+- name: Configure DHCP pools
+  ios_config:
+    lines:
+      - ip dhcp pool {{ item.name }}
+      - network {{ item.network }} {{ item.netmask }}
+      - default-router {{ item.gateway }}
+      - dns-server {{ item.dns_servers | join(' ') }}
+      - lease {{ item.lease | default('1') }}
+    parents: []
+  loop: "{{ dhcp_pools }}"
+  when: enable_dhcp | default(false) and dhcp_pools is defined
+  
+- name: Configure DHCP exclusions
+  ios_config:
+    lines:
+      - ip dhcp excluded-address {{ item.start }} {{ item.end }}
+  loop: "{{ dhcp_exclusions }}"
+  when: enable_dhcp | default(false) and dhcp_exclusions is defined
+  
+- name: Configure DHCP options
+  ios_config:
+    lines:
+      - ip dhcp pool {{ item.pool_name }}
+      - option {{ item.option_number }} {{ item.option_type }} {{ item.option_value }}
+    parents: []
+  loop: "{{ dhcp_options }}"
+  when: enable_dhcp | default(false) and dhcp_options is defined
+  
+- name: Configure DHCP relay
+  ios_config:
+    lines:
+      - ip helper-address {{ item.helper_ip }}
+    parents: interface {{ item.interface }}
+  loop: "{{ dhcp_relay }}"
+  when: dhcp_relay is defined
+  
+- name: Enable DHCP service
+  ios_config:
+    lines:
+      - service dhcp
+  when: enable_dhcp | default(false)

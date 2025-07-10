@@ -1,0 +1,109 @@
+---
+# Security Hardening Default Variables
+# Security-first configuration defaults
+
+# Password policy settings
+min_password_length: 8
+auth_failure_rate: 3
+login_block_time: 300
+login_attempts: 3
+login_time_window: 60
+login_delay: 2
+disable_password_recovery: false
+
+# SSH security settings
+rsa_key_size: 2048
+ssh_timeout: 300
+ssh_auth_retries: 3
+vty_timeout: "5 0"
+vty_session_timeout: "30"
+vty_absolute_timeout: "60"
+
+# SNMP security settings
+secure_snmp_communities:
+  - community: "{{ vault_snmp_ro_community }}"
+    permission: "RO"
+    acl: "SNMP_RO_ACL"
+  - community: "{{ vault_snmp_rw_community }}"
+    permission: "RW"
+    acl: "SNMP_RW_ACL"
+
+# Logging settings
+log_buffer_size: "4096"
+archive_log_size: "100"
+auth_failure_rate: 3
+
+# Access control settings
+mgmt_acl_name: "MGMT_ACCESS"
+snmp_acl_name: "SNMP_ACCESS"
+copp_policy_name: "COPP_POLICY"
+exec_timeout: "5 0"
+
+# Management networks (examples)
+management_networks:
+  - network: "192.168.1.0"
+    wildcard: "0.0.0.255"
+  - network: "10.0.0.0"
+    wildcard: "0.0.0.255"
+
+# SNMP networks (examples)
+snmp_networks:
+  - network: "192.168.1.0"
+    wildcard: "0.0.0.255"
+
+# Line types for timeout configuration
+line_types:
+  - "console 0"
+  - "vty 0 15"
+  - "aux 0"
+
+# TCP security settings
+tcp_synwait_time: 10# Security banners
+motd_banner: |
+  ************************************************************************
+  * WARNING: This is a private network device. Unauthorized access is   *
+  * prohibited. All connections are monitored and recorded. Disconnect   *
+  * immediately if you are not an authorized user.                      *
+  ************************************************************************
+
+login_banner: |
+  ************************************************************************
+  * AUTHORIZED ACCESS ONLY                                              *
+  * This device is the property of Small Office Network                 *
+  * Authentication required - All activity is logged                    *
+  ************************************************************************
+
+exec_banner: |
+  ************************************************************************
+  * You are now logged into a network device                            *
+  * All commands are logged and monitored                               *
+  * Disconnect if you are not authorized to be here                     *
+  ************************************************************************
+
+# SNMP trap settings
+snmp_traps:
+  - "config"
+  - "entity"
+  - "envmon"
+  - "flash"
+  - "hsrp"
+  - "port-security"
+  - "snmp"
+  - "storm-control"
+  - "stpx"
+  - "syslog"
+  - "vlancreate"
+  - "vlandelete"
+  - "vtp"
+
+# Secure interfaces list (will be populated by inventory)
+secure_interfaces: []
+
+# Local user defaults (passwords should be vaulted)
+local_users:
+  - username: "admin"
+    privilege: 15
+    password: "{{ vault_admin_password }}"
+  - username: "operator"
+    privilege: 5
+    password: "{{ vault_operator_password }}"

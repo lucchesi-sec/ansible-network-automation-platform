@@ -1,0 +1,62 @@
+---
+# Tenant ACL Configuration Tasks
+# Configures access control lists for tenant network isolation
+
+- name: Configure tenant ingress ACLs
+  cisco.ios.ios_config:
+    lines:
+      - ip access-list extended {{ item.acl_name }}
+      - remark {{ item.description }}
+      - "{{ item.ace }}"
+    match: line
+  loop: "{{ tenant_ingress_acls }}"
+  when: tenant_ingress_acls is defined
+
+- name: Configure tenant egress ACLs  
+  cisco.ios.ios_config:
+    lines:
+      - ip access-list extended {{ item.acl_name }}
+      - remark {{ item.description }}
+      - "{{ item.ace }}"
+    match: line
+  loop: "{{ tenant_egress_acls }}"
+  when: tenant_egress_acls is defined
+
+- name: Apply ingress ACLs to tenant VLANs
+  cisco.ios.ios_config:
+    lines:
+      - interface vlan{{ item.vlan_id }}
+      - ip access-group {{ item.acl_name }} in
+    parents: interface vlan{{ item.vlan_id }}
+    match: line
+  loop: "{{ tenant_vlan_ingress_bindings }}"
+  when: tenant_vlan_ingress_bindings is defined
+
+- name: Apply egress ACLs to tenant VLANs
+  cisco.ios.ios_config:
+    lines:
+      - interface vlan{{ item.vlan_id }}
+      - ip access-group {{ item.acl_name }} out
+    parents: interface vlan{{ item.vlan_id }}
+    match: line
+  loop: "{{ tenant_vlan_egress_bindings }}"
+  when: tenant_vlan_egress_bindings is defined
+
+- name: Configure tenant inter-VRF communication policies
+  cisco.ios.ios_config:
+    lines:
+      - ip route vrf {{ item.source_vrf }} {{ item.destination_network }} {{ item.destination_mask }} vrf {{ item.destination_vrf }} {{ item.next_hop }}
+    match: line
+  loop: "{{ inter_vrf_routing_policies }}"
+  when: inter_vrf_routing_policies is defined
+
+- name: Configure VLAN access maps for tenant isolation
+  cisco.ios.ios_config:
+    lines:
+      - vlan access-map {{ item.map_name }} {{ item.sequence }}
+      - match ip address {{ item.acl_name }}
+      - action {{ item.action }}
+      - vlan filter {{ item.map_name }} vlan-list {{ item.vlan_list }}
+    match: line
+  loop: "{{ vlan_access_maps }}"
+  when: vlan_access_maps is defined

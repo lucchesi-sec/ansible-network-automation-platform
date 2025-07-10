@@ -1,0 +1,90 @@
+---
+# Identity-Based Networking Switch Configuration
+
+# Identity Authentication
+identity_auth_methods:
+  - 802.1x
+  - mac_authentication_bypass
+  - web_authentication
+  - device_certificate
+
+# 802.1X Configuration
+dot1x_system_auth_control: true
+dot1x_port_control: auto
+dot1x_host_mode: multi_domain
+dot1x_violation_mode: restrict
+dot1x_max_reauth_req: 3
+dot1x_timeout_tx_period: 10
+dot1x_timeout_supp_timeout: 30
+
+# RADIUS Configuration
+radius_servers:
+  - server: 10.0.0.50
+    key: "{{ vault_radius_key }}"
+    auth_port: 1812
+    acct_port: 1813
+    timeout: 5
+    retransmit: 3
+  - server: 10.0.0.51
+    key: "{{ vault_radius_key }}"
+    auth_port: 1812
+    acct_port: 1813
+    timeout: 5
+    retransmit: 3
+
+# Dynamic VLAN Assignment
+dynamic_vlan_enabled: true
+guest_vlan: 100
+auth_fail_vlan: 200
+critical_vlan: 300
+
+# Device Classification
+device_classification_enabled: true
+device_profiling_enabled: true
+device_fingerprinting_enabled: true
+
+# User Role-Based Access
+user_roles:
+  - name: employee
+    vlan: 10
+    acl: employee_access
+  - name: contractor
+    vlan: 20
+    acl: contractor_access
+  - name: guest
+    vlan: 100
+    acl: guest_access
+  - name: iot_device
+    vlan: 300
+    acl: iot_access
+
+# Port Security
+port_security_enabled: true
+port_security_maximum: 3
+port_security_violation: restrict
+port_security_aging_time: 10
+port_security_aging_type: inactivity
+
+# Identity Tracking
+identity_tracking_enabled: true
+identity_session_timeout: 3600
+identity_inactivity_timeout: 1800
+identity_reauth_timeout: 86400
+
+# Certificate-Based Authentication
+certificate_authentication_enabled: true
+certificate_validation_strict: true
+certificate_revocation_check: true
+certificate_chain_validation: true
+
+# Posture Assessment
+posture_assessment_enabled: true
+posture_assessment_periodic: true
+posture_assessment_interval: 300
+posture_remediation_enabled: true
+
+# Identity Store Integration
+identity_store_type: active_directory
+identity_store_polling_interval: 300
+identity_group_mapping_enabled: true
+EOF < /dev/null

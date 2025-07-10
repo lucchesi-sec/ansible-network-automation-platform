@@ -1,0 +1,272 @@
+---
+# Distribution Routers Configuration Variables
+# Regional distribution layer for core routing infrastructure
+
+# Global Distribution Router Settings
+distribution_router_type: "regional_distribution"
+management_network: "10.0.0.0/16"
+distribution_vrf: "DISTRIBUTION"
+ospf_process_id: 1
+bgp_process_id: 65001
+
+# OSPF Configuration for Distribution Layer
+ospf_config:
+  process_id: "{{ ospf_process_id }}"
+  router_id: "{{ router_id }}"
+  area_config:
+    - area_id: "{{ ospf_area }}"
+      area_type: "{{ 'backbone' if ospf_area == 0 else 'standard' }}"
+      authentication: message-digest
+      networks:
+        - network: "10.{{ ospf_area }}.0.0"
+          wildcard: "0.0.255.255"
+          area: "{{ ospf_area }}"
+  timers:
+    hello: 10
+    dead: 40
+    retransmit: 5
+    transmit_delay: 1
+  authentication:
+    key_id: 1
+    key: "{{ vault_ospf_auth_key }}"
+    algorithm: md5
+  area_ranges:
+    - area: "{{ ospf_area }}"
+      range: "10.{{ ospf_area }}.0.0/16"
+      cost: 100
+
+# BGP Configuration for Distribution Layer
+bgp_config:
+  asn: "{{ bgp_asn }}"
+  router_id: "{{ router_id }}"
+  log_neighbor_changes: yes
+  synchronization: no
+  auto_summary: no
+  bestpath:
+    as_path_multipath_relax: yes
+    compare_routerid: yes
+  timers:
+    keepalive: 60
+    holdtime: 180
+  route_reflector:
+    servers:
+      - ip: "10.0.4.10"
+        remote_as: 65001
+        update_source: "Loopback0"
+        description: "Route Reflector 1"
+      - ip: "10.0.4.11"
+        remote_as: 65001
+        update_source: "Loopback0"
+        description: "Route Reflector 2"
+  address_families:
+    - afi: ipv4
+      safi: unicast
+      networks:
+        - network: "10.{{ ospf_area }}.0.0"
+          mask: "255.255.0.0"
+      redistribute:
+        - protocol: ospf
+          metric: 200
+          route_map: "OSPF-TO-BGP-DIST"
+        - protocol: connected
+          route_map: "CONNECTED-TO-BGP-DIST"
+
+# Route Maps for Distribution Layer
+route_maps:
+  - name: "OSPF-TO-BGP-DIST"
+    action: permit
+    sequence: 10
+    match:
+      - "ip address prefix-list OSPF-NETWORKS-DIST"
+    set:
+      - "metric 200"
+      - "local-preference 150"
+      - "community 65001:{{ ospf_area }}"
+  - name: "CONNECTED-TO-BGP-DIST"
+    action: permit
+    sequence: 10
+    match:
+      - "ip address prefix-list CONNECTED-NETWORKS-DIST"
+    set:
+      - "metric 100"
+      - "local-preference 200"
+      - "community 65001:{{ ospf_area }}"
+
+# Prefix Lists for Distribution Layer
+prefix_lists:
+  - name: "OSPF-NETWORKS-DIST"
+    entries:
+      - seq: 5
+        action: permit
+        network: "10.{{ ospf_area }}.0.0/16"
+        le: 24
+      - seq: 10
+        action: permit
+        network: "172.16.{{ ospf_area }}.0/24"
+  - name: "CONNECTED-NETWORKS-DIST"
+    entries:
+      - seq: 5
+        action: permit
+        network: "10.{{ ospf_area }}.0.0/16"
+      - seq: 10
+        action: permit
+        network: "192.168.{{ ospf_area }}.0/24"
+
+# Interface Configuration for Distribution Layer
+interfaces:
+  loopback:
+    - id: 0
+      ip: "{{ router_id }}"
+      mask: "255.255.255.255"
+      description: "Router ID and BGP Update Source"
+  ethernet:
+    - id: "0/0"
+      description: "Uplink to Core Router 1"
+      ip: "10.0.{{ 10 + ospf_area }}.{{ ansible_host.split('.')[3] }}"
+      mask: "255.255.255.252"
+      ospf_area: 0
+      ospf_cost: 10
+      ospf_priority: 0
+    - id: "0/1"
+      description: "Uplink to Core Router 2"
+      ip: "10.0.{{ 20 + ospf_area }}.{{ ansible_host.split('.')[3] }}"
+      mask: "255.255.255.252"
+      ospf_area: 0
+      ospf_cost: 10
+      ospf_priority: 0
+    - id: "0/2"
+      description: "Distribution Network {{ region }}"
+      ip: "10.{{ ospf_area }}.1.{{ ansible_host.split('.')[3] }}"
+      mask: "255.255.255.0"
+      ospf_area: "{{ ospf_area }}"
+      ospf_cost: 1
+      ospf_priority: 255
+
+# HSRP Configuration for High Availability
+hsrp:
+  groups:
+    - group_id: 1
+      virtual_ip: "10.{{ ospf_area }}.1.1"
+      priority: "{{ 110 if region == 'north' else 100 }}"
+      preempt: yes
+      track_interface: "Ethernet0/0"
+      track_decrement: 20
+      authentication: "{{ vault_hsrp_auth_key }}"
+      timers:
+        hello: 1
+        hold: 3
+
+# Security Configuration for Distribution Layer
+security:
+  enable_secret: "{{ vault_cisco_enable_password }}"
+  local_users:
+    - username: "{{ vault_cisco_username }}"
+      password: "{{ vault_cisco_password }}"
+      privilege: 15
+      secret: "{{ vault_cisco_user_secret }}"
+  aaa:
+    new_model: yes
+    authentication:
+      login: "default group tacacs+ local"
+      enable: "default group tacacs+ enable"
+    authorization:
+      exec: "default group tacacs+ local"
+      commands: "15 default group tacacs+ local"
+  tacacs:
+    server: "{{ vault_tacacs_server }}"
+    key: "{{ vault_tacacs_key }}"
+    timeout: 5
+    retransmit: 3
+
+# Access Control Lists for Distribution Layer
+access_lists:
+  - name: "SNMP-RO-ACL"
+    type: standard
+    entries:
+      - seq: 10
+        action: permit
+        source: "{{ vault_snmp_mgmt_network }}"
+        source_wildcard: "0.0.0.255"
+      - seq: 20
+        action: deny
+        source: "any"
+  - name: "SNMP-RW-ACL"
+    type: standard
+    entries:
+      - seq: 10
+        action: permit
+        source: "{{ vault_snmp_mgmt_network }}"
+        source_wildcard: "0.0.0.15"
+      - seq: 20
+        action: deny
+        source: "any"
+
+# NTP Configuration
+ntp:
+  servers:
+    - ip: "{{ vault_ntp_server_primary }}"
+      version: 4
+      prefer: yes
+    - ip: "{{ vault_ntp_server_secondary }}"
+      version: 4
+  timezone: "PST -8"
+  summer_time: "PDT recurring"
+
+# SNMP Configuration for Distribution Layer
+snmp:
+  communities:
+    - name: "{{ vault_snmp_ro_community }}"
+      permission: ro
+      acl: "SNMP-RO-ACL"
+    - name: "{{ vault_snmp_rw_community }}"
+      permission: rw
+      acl: "SNMP-RW-ACL"
+  contact: "Network Operations <netops@company.com>"
+  location: "Distribution Layer - {{ region | title }} Region"
+  trap_source: "Loopback0"
+  traps:
+    - "snmp authentication linkdown linkup"
+    - "ospf state-change"
+    - "bgp"
+    - "hsrp"
+
+# Logging Configuration
+logging:
+  buffered: 8192
+  console: "warnings"
+  monitor: "warnings"
+  trap: "informational"
+  facility: "local7"
+  source_interface: "Loopback0"
+  hosts:
+    - ip: "{{ vault_syslog_server }}"
+      facility: "local7"
+      level: "informational"
+
+# Quality of Service for Distribution Layer
+qos:
+  policy_maps:
+    - name: "DIST-QOS-OUT"
+      class_maps:
+        - name: "VOICE"
+          priority: 512
+          police: "512k conform-action transmit exceed-action drop"
+        - name: "VIDEO"
+          bandwidth: "percent 25"
+          random_detect: yes
+        - name: "CRITICAL-DATA"
+          bandwidth: "percent 35"
+          random_detect: yes
+        - name: "BEST-EFFORT"
+          bandwidth: "percent 30"
+          random_detect: yes
+  class_maps:
+    - name: "VOICE"
+      match: "dscp ef"
+    - name: "VIDEO"
+      match: "dscp af41 af42 af43"
+    - name: "CRITICAL-DATA"
+      match: "dscp af31 af32 af33"
+    - name: "BEST-EFFORT"
+      match: "dscp default"
+EOF < /dev/null

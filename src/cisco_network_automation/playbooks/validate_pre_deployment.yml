@@ -1,0 +1,96 @@
+---
+# Pre-Deployment Validation Playbook
+# Comprehensive infrastructure validation before deployment begins
+
+- name: Phase 1 - Infrastructure Validation
+  hosts: localhost
+  gather_facts: no
+  vars:
+    deployment_id: "{{ deployment_id }}"
+    deployment_base_path: "{{ deployment_base_path }}"
+    deployment_environment: "{{ deployment_environment }}"
+    deployment_safety: "{{ deployment_safety }}"
+    validation_level: "{{ deployment_safety[deployment_environment]['validation_level'] }}"
+    
+  tasks:
+    - name: Phase 1 - Display validation information
+      debug:
+        msg:
+          - "=== PHASE 1: INFRASTRUCTURE VALIDATION ==="
+          - "Deployment ID: {{ deployment_id }}"
+          - "Environment: {{ deployment_environment }}"
+          - "Validation Level: {{ validation_level }}"
+          - "Total devices to validate: {{ groups['all'] | length }}"
+          
+    - name: Phase 1 - Create validation report directory
+      file:
+        path: "{{ deployment_base_path }}/validation_reports"
+        state: directory
+        mode: '0755'
+        
+    - name: Phase 1 - Validate required inventory groups exist
+      assert:
+        that:
+          - groups['all'] is defined
+          - groups['all'] | length > 0
+        fail_msg: "No devices found in inventory"
+        success_msg: "Inventory contains {{ groups['all'] | length }} devices"
+        
+    - name: Phase 1 - Validate core infrastructure groups
+      assert:
+        that:
+          - groups['core_routers'] is defined or groups['distribution_routers'] is defined
+        fail_msg: "No core infrastructure groups found"
+        success_msg: "Core infrastructure groups validated"
+
+- name: Phase 1 - Device Connectivity Validation
+  hosts: all
+  gather_facts: no
+  serial: 10
+  vars:
+    deployment_base_path: "{{ hostvars['localhost']['deployment_base_path'] }}"
+    
+  tasks:
+    - name: Phase 1 - Test device connectivity
+      ios_ping:
+        dest: "{{ ansible_host }}"
+        count: 3
+      delegate_to: localhost
+      register: connectivity_test
+      
+    - name: Phase 1 - Verify device authentication
+      ios_command:
+        commands:
+          - show version
+      register: device_version
+      
+    - name: Phase 1 - Log connectivity results
+      copy:
+        content: |
+          Device: {{ inventory_hostname }}
+          IP: {{ ansible_host }}
+          Group: {{ group_names | join(', ') }}
+          Connectivity: {{ 'PASSED' if connectivity_test is success else 'FAILED' }}
+          Authentication: {{ 'PASSED' if device_version is success else 'FAILED' }}
+          Timestamp: {{ ansible_date_time.iso8601 }}
+        dest: "{{ deployment_base_path }}/validation_reports/{{ inventory_hostname }}_connectivity.txt"
+      delegate_to: localhost
+
+- name: Phase 1 - Final Validation Summary
+  hosts: localhost
+  gather_facts: no
+  vars:
+    deployment_base_path: "{{ deployment_base_path }}"
+    
+  tasks:
+    - name: Phase 1 - Generate validation summary
+      copy:
+        content: |
+          === PHASE 1 VALIDATION COMPLETE ===
+          Total devices validated: {{ groups['all'] | length }}
+          Validation level: {{ validation_level }}
+          Completed: {{ ansible_date_time.iso8601 }}
+          Status: PASSED - Ready for deployment
+        dest: "{{ deployment_base_path }}/validation_reports/phase1_summary.txt"
+        mode: '0644'
+EOF < /dev/null

@@ -1,0 +1,72 @@
+---
+# Bandwidth Management Role Defaults
+# Default variables for bandwidth management deployment
+
+# General bandwidth management settings
+bandwidth_management_enabled: true
+traffic_shaping_enabled: true
+rate_limiting_enabled: true
+congestion_management_enabled: true
+
+# Traffic shaping defaults
+default_shaping_rate: 100000000  # 100 Mbps in bits per second
+default_burst_size: 1500000      # 1.5 MB
+adaptive_shaping_enabled: true
+
+# Bandwidth allocation defaults
+fair_queuing_enabled: true
+weighted_fair_queuing: true
+priority_queuing_enabled: true
+custom_queuing_enabled: false
+
+# Rate limiting defaults
+default_police_rate: 50000000    # 50 Mbps
+default_police_burst: 750000     # 750 KB
+exceed_action: drop
+violate_action: drop
+
+# Congestion management defaults
+wred_enabled: true
+wred_exponential_weight: 9
+queue_limit: 64
+drop_threshold_min: 16
+drop_threshold_max: 48
+
+# Queue configuration
+input_queue_size: 1000
+output_queue_size: 1000
+priority_queue_limit: 20
+custom_queue_limit: 20
+
+# NetFlow monitoring
+netflow_monitoring_enabled: true
+netflow_version: 9
+netflow_active_timeout: 1
+netflow_inactive_timeout: 15
+netflow_sampling_rate: 1000
+
+# SNMP monitoring
+snmp_monitoring_enabled: true
+load_interval: 30
+bandwidth_threshold_major: 85
+bandwidth_threshold_minor: 70
+
+# Performance profiles
+default_profile: balanced
+
+# QoS integration
+qos_integration_enabled: true
+dscp_policing_enabled: true
+cos_remarking_enabled: true
+
+# Documentation settings
+generate_documentation: true
+documentation_path: "{{ playbook_dir }}/../docs/"
+
+# Validation settings
+validate_deployment: true
+validation_timeout: 300
+
+# Backup settings
+backup_enabled: true
+backup_path: "{{ playbook_dir }}/../backups/"

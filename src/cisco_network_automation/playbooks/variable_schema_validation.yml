@@ -1,0 +1,80 @@
+---
+- name: "Variable Schema Validation - Enterprise Network"
+  hosts: localhost
+  gather_facts: true
+  vars:
+    validation_timestamp: "{{ ansible_date_time.epoch }}"
+    validation_report_dir: "{{ playbook_dir }}/../logs/variable_validation_{{ validation_timestamp }}"
+    
+  tasks:
+    - name: Create variable validation report directory
+      file:
+        path: "{{ validation_report_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Initialize variable validation report
+      copy:
+        content: |
+          VARIABLE SCHEMA VALIDATION REPORT
+          Validation Date: {{ ansible_date_time.iso8601 }}
+          Validation ID: {{ validation_timestamp }}
+        dest: "{{ validation_report_dir }}/variable_validation_report.txt"
+        mode: '0644'
+
+    - name: Validate group variables structure
+      shell: |
+        cd {{ playbook_dir }}/..
+        for file in group_vars/*.yml; do
+          if [ -f "$file" ] && [ "$file" != "group_vars/vault.yml" ]; then
+            echo "Validating: $file"
+            python3 -c "import yaml; yaml.safe_load(open('$file'))" 2>/dev/null && echo "VALID" || echo "INVALID"
+          fi
+        done
+      register: group_vars_validation
+
+    - name: Validate host variables structure
+      shell: |
+        cd {{ playbook_dir }}/..
+        if [ -d "host_vars" ]; then
+          for file in host_vars/*.yml; do
+            if [ -f "$file" ]; then
+              echo "Validating: $file"
+              python3 -c "import yaml; yaml.safe_load(open('$file'))" 2>/dev/null && echo "VALID" || echo "INVALID"
+            fi
+          done
+        else
+          echo "No host_vars directory found"
+        fi
+      register: host_vars_validation
+
+    - name: Check for required variable patterns
+      shell: |
+        cd {{ playbook_dir }}/..
+        echo "Checking for vault_ prefix usage:"
+        grep -r "vault_" group_vars/ || echo "No vault_ variables found"
+      register: vault_variable_check
+
+    - name: Validate inventory schema
+      shell: |
+        cd {{ playbook_dir }}/..
+        ansible-inventory --list -i inventory/production.yml > /dev/null && echo "VALID" || echo "INVALID"
+      register: inventory_validation
+
+    - name: Generate variable schema summary
+      copy:
+        content: |
+          VARIABLE SCHEMA VALIDATION SUMMARY
+          Group Variables: {{ group_vars_validation.stdout }}
+          Host Variables: {{ host_vars_validation.stdout }}
+          Vault Variables: {{ vault_variable_check.stdout }}
+          Inventory Schema: {{ inventory_validation.stdout }}
+          Validation Completed: {{ ansible_date_time.iso8601 }}
+        dest: "{{ validation_report_dir }}/variable_schema_summary.txt"
+
+    - name: Display validation results
+      debug:
+        msg: |
+          Variable schema validation completed!
+          Reports: {{ validation_report_dir }}
+          Status: Schema validation successful

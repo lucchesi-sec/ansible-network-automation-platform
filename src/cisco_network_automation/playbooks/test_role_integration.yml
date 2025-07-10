@@ -1,0 +1,58 @@
+---
+# Test Role Integration Playbook
+# Tests the three core integrated roles
+
+- name: Test Core Role Integration
+  hosts: localhost
+  gather_facts: no
+  vars:
+    test_environment: "development"
+    test_timestamp: "{{ ansible_date_time.epoch }}"
+    
+  tasks:
+    - name: Display test information
+      debug:
+        msg:
+          - "=== Core Role Integration Test ==="
+          - "Environment: {{ test_environment }}"
+          - "Timestamp: {{ test_timestamp }}"
+          - "Testing roles: cisco_router, security_hardening, bgp_configuration"
+
+    - name: Validate cisco_router role structure
+      stat:
+        path: "{{ playbook_dir }}/../roles/cisco_router/{{ item }}"
+      register: cisco_router_files
+      loop:
+        - "defaults/main.yml"
+        - "tasks/main.yml"
+        - "handlers/main.yml"
+        - "meta/main.yml"
+
+    - name: Validate security_hardening role structure
+      stat:
+        path: "{{ playbook_dir }}/../roles/security_hardening/{{ item }}"
+      register: security_hardening_files
+      loop:
+        - "defaults/main.yml"
+        - "tasks/main.yml"
+        - "handlers/main.yml"
+        - "meta/main.yml"
+
+    - name: Validate bgp_configuration role structure
+      stat:
+        path: "{{ playbook_dir }}/../roles/bgp_configuration/{{ item }}"
+      register: bgp_configuration_files
+      loop:
+        - "defaults/main.yml"
+        - "tasks/main.yml"
+        - "handlers/main.yml"
+        - "meta/main.yml"
+
+    - name: Display role validation results
+      debug:
+        msg:
+          - "=== Role Validation Results ==="
+          - "cisco_router files: {{ cisco_router_files.results | selectattr('stat.exists') | list | length }}/4"
+          - "security_hardening files: {{ security_hardening_files.results | selectattr('stat.exists') | list | length }}/4"
+          - "bgp_configuration files: {{ bgp_configuration_files.results | selectattr('stat.exists') | list | length }}/4"
+          - "All roles successfully integrated: {{ (cisco_router_files.results | selectattr('stat.exists') | list | length == 4) and (security_hardening_files.results | selectattr('stat.exists') | list | length == 4) and (bgp_configuration_files.results | selectattr('stat.exists') | list | length == 4) }}"

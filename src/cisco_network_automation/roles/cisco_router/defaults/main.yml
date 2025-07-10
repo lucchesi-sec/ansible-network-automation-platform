@@ -1,0 +1,62 @@
+---
+# Default variables for Cisco Router Role
+# Enterprise network router configuration defaults
+
+# Basic settings
+minimum_ios_version: "15.1"
+timezone_name: "{{ global_timezone_name | default('UTC') }}"
+timezone_offset: "{{ global_timezone_offset | default('0') }}"
+log_buffer_size: "4096"
+
+# Domain settings
+domain_name: "{{ vault_domain_name | default('example.com') }}"
+dns_servers: "{{ vault_dns_servers | default(['8.8.8.8', '8.8.4.4']) }}"
+ntp_servers: "{{ vault_ntp_servers | default(['pool.ntp.org']) }}"
+
+# Interface settings
+wan_interface: "GigabitEthernet0/0"
+lan_interface: "GigabitEthernet0/1"
+wan_dhcp: true
+lan_ip: "192.168.1.1"
+lan_netmask: "255.255.255.0"
+
+# Loopback interface
+loopback_interface: "Loopback0"
+loopback_ip: "10.0.0.1"
+loopback_netmask: "255.255.255.255"
+
+# NAT settings
+nat_acl_number: "100"
+nat_networks:
+  - network: "192.168.1.0"
+    wildcard: "0.0.0.255"
+
+# DHCP settings
+enable_dhcp: true
+dhcp_pools:
+  - name: "LAN_POOL"
+    network: "192.168.1.0"
+    netmask: "255.255.255.0"
+    gateway: "192.168.1.1"
+    dns_servers: "{{ vault_dns_servers | default(['8.8.8.8', '8.8.4.4']) }}"
+    lease: "1"
+
+dhcp_exclusions:
+  - start: "192.168.1.1"
+    end: "192.168.1.10"
+
+# SSH and VTY settings
+ssh_timeout: 300
+vty_timeout: "5 0"
+vty_session_timeout: "30"
+console_timeout: "5 0"
+
+# SNMP settings
+snmp_location: "{{ vault_snmp_location | default('Enterprise Network') }}"
+snmp_contact: "{{ vault_snmp_contact | default('Network Admin') }}"
+
+# Testing
+internet_test_host: "8.8.8.8"
+
+# Banner message
+banner_message: "{{ vault_banner_message | default('AUTHORIZED ACCESS ONLY - Enterprise Network') }}"

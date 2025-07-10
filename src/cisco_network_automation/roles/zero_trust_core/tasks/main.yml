@@ -1,0 +1,209 @@
+---
+# Zero Trust Core - Consolidated Role
+# Combines zero trust policies and continuous verification functionality
+# Replaces: cisco_zero_trust_policies + cisco_continuous_verification
+
+- name: Display Zero Trust Core banner
+  debug:
+    msg: |
+      Configuring Zero Trust Core on {{ inventory_hostname }}
+      Policy Enforcement: {{ zero_trust_policy_enforcement }}
+      Default Trust Level: {{ default_trust_level }}
+      Verification Interval: {{ verification_interval }}s
+      Trust Zone: {{ trust_zone | default('unknown') }}
+
+# Zero Trust Policy Engine Configuration
+- name: Enable zero trust policy engine
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust policy-engine enable
+      - zero-trust default-action deny
+      - zero-trust verification-interval {{ verification_interval }}
+      - zero-trust identity-timeout {{ identity_timeout }}
+      - zero-trust policy-enforcement {{ zero_trust_policy_enforcement }}
+    parents: configure terminal
+  notify: restart policy engine
+  tags: [zero_trust_policies]
+
+- name: Configure identity sources integration
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust identity-source {{ item.type }}
+      - server {{ item.server }}
+      - backup-server {{ item.backup_server | default('') }}
+      - domain {{ item.domain | default('') }}
+      - port {{ item.port | default('') }}
+    parents: configure terminal
+  loop: "{{ identity_sources | default([]) }}"
+  when: identity_sources is defined
+  tags: [zero_trust_policies, identity]
+
+- name: Configure zero trust access policies
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust policy {{ item.name }}
+      - description {{ item.description | default('Zero trust access policy') }}
+      - source-zone {{ item.src_zone }}
+      - destination-zone {{ item.dst_zone }}
+      - action {{ item.action }}
+      - verification {{ item.verification | default('required') }}
+      - logging {{ item.logging | default('enabled') }}
+    parents: configure terminal
+  loop: "{{ zero_trust_policies | default([]) }}"
+  when: zero_trust_policies is defined
+  tags: [zero_trust_policies]
+
+- name: Configure micro-segmentation rules
+  cisco.ios.ios_config:
+    lines:
+      - micro-segment rule {{ item.src_zone }}-to-{{ item.dst_zone }}
+      - source-zone {{ item.src_zone }}
+      - destination-zone {{ item.dst_zone }}
+      - action {{ item.action }}
+      - verification required
+    parents: configure terminal
+  loop: "{{ default_microsegmentation_rules | default([]) }}"
+  when: default_microsegmentation_rules is defined
+  tags: [zero_trust_policies, microsegmentation]
+
+- name: Configure certificate validation
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust certificate validation
+      - root-ca {{ pki_root_ca }}
+      - device-template {{ device_certificate_template }}
+      - user-template {{ user_certificate_template }}
+      - renewal-threshold {{ certificate_renewal_threshold }}
+    parents: configure terminal
+  when: pki_root_ca is defined
+  tags: [zero_trust_policies, certificates]
+
+# Continuous Verification Engine Configuration
+- name: Enable continuous verification engine
+  cisco.ios.ios_config:
+    lines:
+      - continuous-verification enable
+      - continuous-verification interval {{ verification_interval }}
+      - continuous-verification risk-threshold medium
+      - continuous-verification action quarantine
+    parents: configure terminal
+  tags: [continuous_verification]
+
+- name: Configure verification methods
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust continuous-verification enable
+      - verification-method {{ item }}
+    parents: configure terminal
+  loop: "{{ verification_methods | default([]) }}"
+  when: verification_methods is defined
+  tags: [continuous_verification]
+
+- name: Configure device posture verification
+  cisco.ios.ios_config:
+    lines:
+      - verification method device-posture
+      - posture-check compliance required
+      - posture-check antivirus enabled
+      - posture-check patches current
+      - posture-check encryption required
+    parents: configure terminal
+  when: "'device_posture' in verification_methods | default([])"
+  tags: [continuous_verification, device_posture]
+
+- name: Configure user behavior analysis
+  cisco.ios.ios_config:
+    lines:
+      - verification method user-behavior
+      - behavior-analysis baseline-learning 30
+      - behavior-analysis anomaly-threshold high
+      - behavior-analysis location-awareness enabled
+      - behavior-analysis time-pattern-analysis enabled
+    parents: configure terminal
+  when: "'user_behavior' in verification_methods | default([])"
+  tags: [continuous_verification, user_behavior]
+
+- name: Configure traffic analysis verification
+  cisco.ios.ios_config:
+    lines:
+      - verification method traffic-analysis
+      - traffic-analysis deep-packet-inspection enabled
+      - traffic-analysis flow-correlation enabled
+      - traffic-analysis malware-detection enabled
+      - traffic-analysis data-loss-prevention enabled
+    parents: configure terminal
+  when: "'traffic_analysis' in verification_methods | default([])"
+  tags: [continuous_verification, traffic_analysis]
+
+- name: Configure risk scoring
+  cisco.ios.ios_config:
+    lines:
+      - verification method risk-scoring
+      - risk-scoring factors location device user traffic
+      - risk-scoring algorithm adaptive
+      - risk-scoring update-interval 60
+      - risk-scoring threshold-adjustment automatic
+    parents: configure terminal
+  when: "'risk_scoring' in verification_methods | default([])"
+  tags: [continuous_verification, risk_scoring]
+
+- name: Configure verification responses
+  cisco.ios.ios_config:
+    lines:
+      - verification response {{ item.trigger }}
+      - action {{ item.action }}
+      - notification {{ item.notification | default('enabled') }}
+      - escalation {{ item.escalation | default('automatic') }}
+      - remediation {{ item.remediation | default('guided') }}
+    parents: configure terminal
+  loop: "{{ verification_responses | default([]) }}"
+  when: verification_responses is defined
+  tags: [continuous_verification, responses]
+
+# Integrated Logging and Monitoring
+- name: Configure zero trust logging
+  cisco.ios.ios_config:
+    lines:
+      - zero-trust logging enable
+      - zero-trust logging level {{ logging_level | default('informational') }}
+      - zero-trust logging facility {{ logging_facility | default('local6') }}
+      - zero-trust logging server {{ logging_server }}
+      - verification logging enable
+      - verification logging level detailed
+      - verification logging events all
+      - verification logging export {{ logging_server }}
+    parents: configure terminal
+  when: logging_server is defined
+  tags: [logging, monitoring]
+
+# Validation and Verification
+- name: Verify zero trust core configuration
+  cisco.ios.ios_command:
+    commands:
+      - show zero-trust policy status
+      - show zero-trust identity-sources
+      - show zero-trust verification status
+      - show verification status
+      - show verification methods
+      - show verification statistics
+  register: zero_trust_status
+  failed_when: false
+  tags: [validation]
+
+- name: Display zero trust core status
+  debug:
+    var: zero_trust_status.stdout_lines
+  when: zero_trust_status is defined
+  tags: [validation]
+
+- name: Validate zero trust core functionality
+  assert:
+    that:
+      - zero_trust_status is defined
+      - zero_trust_status.failed == false
+      - zero_trust_policy_enforcement in ['strict', 'moderate', 'learning']
+      - default_trust_level == 'never'
+    fail_msg: "Zero Trust Core configuration failed validation"
+    success_msg: "Zero Trust Core configured successfully"
+  when: zero_trust_status is defined
+  tags: [validation]

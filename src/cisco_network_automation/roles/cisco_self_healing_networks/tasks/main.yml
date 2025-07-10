@@ -1,0 +1,77 @@
+---
+# Self-Healing Networks Implementation
+# Configures automated network healing and recovery mechanisms
+
+- name: Enable self-healing network engine
+  cisco.ios.ios_config:
+    lines:
+      - self-healing enable
+      - self-healing mode proactive
+      - self-healing response-time {{ automation_response_timeout }}
+      - self-healing threshold {{ healing_action_threshold }}
+    parents: configure terminal
+
+- name: Configure failure detection
+  cisco.ios.ios_config:
+    lines:
+      - self-healing detection enable
+      - detection-methods connectivity performance availability
+      - detection-interval 30
+      - correlation-analysis enabled
+    parents: configure terminal
+
+- name: Configure automatic remediation
+  cisco.ios.ios_config:
+    lines:
+      - self-healing remediation enable
+      - remediation-priority critical high medium low
+      - remediation-scope interface routing protocol service
+      - remediation-rollback enabled
+    parents: configure terminal
+
+- name: Configure healing policies
+  cisco.ios.ios_config:
+    lines:
+      - healing-policy {{ item.name }}
+      - trigger {{ item.trigger }}
+      - condition {{ item.condition }}
+      - action {{ item.action }}
+    parents: configure terminal
+  loop: "{{ healing_policies | default([]) }}"
+
+- name: Configure interface healing
+  cisco.ios.ios_config:
+    lines:
+      - self-healing interface enable
+      - interface-recovery automatic
+      - port-flap-detection enabled
+      - link-failure-recovery enabled
+    parents: configure terminal
+
+- name: Configure service healing
+  cisco.ios.ios_config:
+    lines:
+      - self-healing service enable
+      - service-restart automatic
+      - resource-optimization enabled
+      - performance-tuning automatic
+    parents: configure terminal
+
+- name: Enable healing monitoring
+  cisco.ios.ios_config:
+    lines:
+      - self-healing monitoring enable
+      - monitoring-granularity detailed
+      - healing-statistics collection
+    parents: configure terminal
+
+- name: Verify self-healing configuration
+  cisco.ios.ios_command:
+    commands:
+      - show self-healing status
+      - show healing-policies
+  register: healing_status
+
+- name: Display self-healing status
+  debug:
+    var: healing_status.stdout_lines

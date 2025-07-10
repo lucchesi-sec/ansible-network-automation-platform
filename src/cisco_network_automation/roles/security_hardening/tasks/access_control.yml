@@ -1,0 +1,56 @@
+---
+# Access Control Security Tasks
+# Implements comprehensive access control policies
+
+- name: Configure management access ACL
+  ios_config:
+    lines:
+      - ip access-list standard {{ mgmt_acl_name }}
+      - permit {{ item.network }} {{ item.wildcard }}
+      - deny any log
+    parents: []
+  loop: "{{ management_networks }}"
+  when: management_networks is defined and mgmt_acl_name is defined
+  
+- name: Apply management ACL to VTY lines
+  ios_config:
+    lines:
+      - access-class {{ mgmt_acl_name }} in
+    parents: line vty 0 15
+  when: mgmt_acl_name is defined
+  
+- name: Configure SNMP access ACL
+  ios_config:
+    lines:
+      - ip access-list standard {{ snmp_acl_name }}
+      - permit {{ item.network }} {{ item.wildcard }}
+      - deny any log
+    parents: []
+  loop: "{{ snmp_networks }}"
+  when: snmp_networks is defined and snmp_acl_name is defined
+  
+- name: Configure control plane policing
+  ios_config:
+    lines:
+      - policy-map {{ copp_policy_name }}
+      - class {{ item.class_name }}
+      - police {{ item.rate }} {{ item.burst }} conform-action transmit exceed-action drop
+    parents: []
+  loop: "{{ copp_classes }}"
+  when: copp_classes is defined and copp_policy_name is defined
+  
+- name: Apply control plane policy
+  ios_config:
+    lines:
+      - control-plane
+      - service-policy input {{ copp_policy_name }}
+    parents: []
+  when: copp_policy_name is defined
+  
+- name: Configure exec timeout
+  ios_config:
+    lines:
+      - exec-timeout {{ exec_timeout }}
+    parents: line {{ item }}
+  loop: "{{ line_types }}"
+  when: line_types is defined and exec_timeout is defined

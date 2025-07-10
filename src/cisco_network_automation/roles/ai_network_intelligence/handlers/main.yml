@@ -1,0 +1,41 @@
+---
+# AI Network Intelligence - Handlers
+# Consolidated handlers for AI optimization and automation services
+
+- name: restart automation services
+  cisco.ios.ios_command:
+    commands:
+      - clear automation controller sessions
+      - automation controller restart
+  listen: restart automation services
+  failed_when: false
+
+- name: reload automation policies
+  cisco.ios.ios_command:
+    commands:
+      - automation policy reload
+      - clear automation events
+  listen: reload automation policies
+  failed_when: false
+
+- name: restart ai optimization
+  cisco.ios.ios_command:
+    commands:
+      - clear ai-optimization statistics
+      - ai-optimization restart
+  listen: restart ai optimization
+  failed_when: false
+
+- name: validate ai intelligence
+  cisco.ios.ios_command:
+    commands:
+      - show ai-optimization status
+      - show automation controller status
+  register: validation_result
+  listen: validate ai intelligence
+  failed_when: false
+
+- name: save configuration
+  cisco.ios.ios_config:
+    save_when: modified
+  listen: save configuration

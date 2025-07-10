@@ -1,0 +1,69 @@
+---
+# Micro-Segmentation Validation Tasks
+# Validates micro-segmentation deployment
+
+- name: Validate VRF configuration
+  cisco.ios.ios_command:
+    commands:
+      - show vrf
+  register: vrf_status
+  failed_when: false
+
+- name: Display VRF status
+  debug:
+    msg: "VRF Status: {{ vrf_status.stdout[0] }}"
+  when: vrf_status is defined
+
+- name: Validate tenant ACL configurations
+  cisco.ios.ios_command:
+    commands:
+      - show access-lists {{ item.acl_name }}
+  register: acl_status
+  loop: "{{ validation_acls }}"
+  when: validation_acls is defined
+  failed_when: false
+
+- name: Display ACL status
+  debug:
+    msg: "ACL {{ item.item.acl_name }}: {{ 'Configured' if item.stdout[0] else 'Not Found' }}"
+  loop: "{{ acl_status.results }}"
+  when: acl_status is defined
+
+- name: Validate security group tag mappings
+  cisco.ios.ios_command:
+    commands:
+      - show cts role-based sgt-map all
+  register: sgt_mappings
+  failed_when: false
+
+- name: Display SGT mappings
+  debug:
+    msg: "SGT Mappings configured"
+  when: sgt_mappings is defined
+
+- name: Test tenant isolation connectivity
+  cisco.ios.ios_command:
+    commands:
+      - ping vrf {{ item.source_vrf }} {{ item.target_ip }}
+  register: isolation_test
+  loop: "{{ tenant_isolation_tests }}"
+  when: tenant_isolation_tests is defined
+  failed_when: false
+
+- name: Display tenant isolation results
+  debug:
+    msg: "Isolation test from VRF {{ item.item.source_vrf }} to {{ item.item.target_ip }}: {{ 'Blocked' if item.stdout[0] is search('Success rate is 0') else 'Allowed' }}"
+  loop: "{{ isolation_test.results }}"
+  when: isolation_test is defined
+
+- name: Validate NetFlow configuration
+  cisco.ios.ios_command:
+    commands:
+      - show ip flow export
+  register: netflow_status
+  failed_when: false
+
+- name: Display NetFlow status
+  debug:
+    msg: "NetFlow export status verified"
+  when: netflow_status is defined

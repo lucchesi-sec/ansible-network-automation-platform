@@ -1,0 +1,42 @@
+---
+# Generate Performance Documentation Tasks
+# Creates documentation for performance optimization configuration
+
+- name: Create performance documentation directory
+  file:
+    path: "{{ documentation_path }}/performance"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate performance configuration documentation
+  template:
+    src: performance_config.md.j2
+    dest: "{{ documentation_path }}/performance/{{ inventory_hostname }}_performance_config.md"
+    mode: '0644'
+  delegate_to: localhost
+
+- name: Generate performance baselines documentation
+  template:
+    src: performance_baselines.md.j2
+    dest: "{{ documentation_path }}/performance/performance_baselines.md"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate performance tuning profiles documentation
+  template:
+    src: performance_profiles.md.j2
+    dest: "{{ documentation_path }}/performance/performance_profiles.md"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate performance monitoring documentation
+  template:
+    src: performance_monitoring.md.j2
+    dest: "{{ documentation_path }}/performance/performance_monitoring.md"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true

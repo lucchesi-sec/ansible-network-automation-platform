@@ -1,0 +1,47 @@
+---
+# Multicast Configuration Tasks
+# Configures multicast for VXLAN overlay support
+
+- name: Enable multicast routing globally
+  cisco.ios.ios_config:
+    lines:
+      - ip multicast-routing
+      - ip pim sparse-mode
+    match: line
+  when: multicast_enabled | bool
+
+- name: Configure multicast rendezvous point
+  cisco.ios.ios_config:
+    lines:
+      - ip pim rp-address {{ multicast_rp_address }}
+      - ip pim send-rp-announce loopback{{ router_id_loopback }} scope {{ multicast_rp_scope }}
+    match: line
+  when: multicast_rp_enabled | bool and multicast_rp_address is defined
+
+- name: Configure multicast on underlay interfaces
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - ip pim sparse-mode
+      - ip multicast boundary {{ item.boundary }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ multicast_interfaces }}"
+  when: multicast_interfaces is defined
+
+- name: Configure multicast groups for VXLAN
+  cisco.ios.ios_config:
+    lines:
+      - ip igmp snooping
+      - ip igmp snooping vlan {{ item.vlan }} mrouter interface {{ item.mrouter_interface }}
+    match: line
+  loop: "{{ vxlan_multicast_groups }}"
+  when: vxlan_multicast_groups is defined
+
+- name: Configure multicast source discovery protocol
+  cisco.ios.ios_config:
+    lines:
+      - ip pim autorp listener
+      - ip pim send-rp-discovery loopback{{ router_id_loopback }} scope {{ multicast_discovery_scope }}
+    match: line
+  when: multicast_autodiscovery_enabled | bool

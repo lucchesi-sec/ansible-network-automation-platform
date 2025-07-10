@@ -1,0 +1,367 @@
+---
+# Domain-Driven Design Entities and Aggregates
+# Monitoring & Observability Domain Model
+
+# Metrics Collection Domain Entities
+metrics_domain:
+  entities:
+    metric:
+      aggregate_root: true
+      properties:
+        - id: "uuid"
+        - name: "string"
+        - type: "gauge|counter|histogram|summary"
+        - labels: "map[string]string"
+        - value: "float64"
+        - timestamp: "datetime"
+        - source_device: "string"
+        - namespace: "string"
+        - retention_policy: "string"
+      business_rules:
+        - "Metric names must follow Prometheus naming conventions"
+        - "Labels are immutable once set"
+        - "Timestamps must be chronological"
+        - "Values must be numeric"
+      
+    time_series:
+      aggregate_root: false
+      parent: "metric"
+      properties:
+        - metric_id: "uuid"
+        - data_points: "array[data_point]"
+        - start_time: "datetime"
+        - end_time: "datetime"
+        - resolution: "duration"
+        - aggregation_type: "avg|sum|min|max|count"
+      
+    data_point:
+      aggregate_root: false
+      parent: "time_series"
+      properties:
+        - timestamp: "datetime"
+        - value: "float64"
+        - quality: "good|bad|uncertain"
+        - annotations: "map[string]string"
+      
+    metric_metadata:
+      aggregate_root: false
+      parent: "metric"
+      properties:
+        - metric_id: "uuid"
+        - description: "string"
+        - unit: "string"
+        - help_text: "string"
+        - collection_method: "snmp|gnmi|api|custom"
+        - collection_interval: "duration"
+        - data_type: "numeric|boolean|string"
+
+  value_objects:
+    label_set:
+      properties:
+        - labels: "map[string]string"
+      validations:
+        - "Label keys must be valid identifiers"
+        - "Label values cannot be empty"
+        - "Maximum 20 labels per metric"
+    
+    metric_name:
+      properties:
+        - name: "string"
+        - namespace: "string"
+        - subsystem: "string"
+      validations:
+        - "Must match regex: [a-zA-Z_:][a-zA-Z0-9_:]*"
+        - "Total length cannot exceed 200 characters"
+
+# Alert Management Domain Entities
+alert_domain:
+  entities:
+    alert_rule:
+      aggregate_root: true
+      properties:
+        - id: "uuid"
+        - name: "string"
+        - description: "string"
+        - expression: "string"  # PromQL expression
+        - severity: "critical|warning|info"
+        - for_duration: "duration"
+        - labels: "map[string]string"
+        - annotations: "map[string]string"
+        - enabled: "boolean"
+        - created_at: "datetime"
+        - updated_at: "datetime"
+        - created_by: "string"
+      business_rules:
+        - "Alert rule names must be unique within a namespace"
+        - "Expression must be valid PromQL"
+        - "Critical alerts must have escalation policy"
+        - "For duration must be >= scrape interval"
+      
+    alert_instance:
+      aggregate_root: false
+      parent: "alert_rule"
+      properties:
+        - id: "uuid"
+        - rule_id: "uuid"
+        - state: "pending|firing|resolved"
+        - active_at: "datetime"
+        - fired_at: "datetime"
+        - resolved_at: "datetime"
+        - labels: "map[string]string"
+        - annotations: "map[string]string"
+        - value: "string"
+        - fingerprint: "string"
+      
+    notification:
+      aggregate_root: true
+      properties:
+        - id: "uuid"
+        - alert_instance_id: "uuid"
+        - channel_type: "email|slack|pagerduty|webhook"
+        - recipient: "string"
+        - status: "pending|sent|failed|acknowledged"
+        - sent_at: "datetime"
+        - acknowledged_at: "datetime"
+        - retry_count: "integer"
+        - error_message: "string"
+      
+    escalation_policy:
+      aggregate_root: true
+      properties:
+        - id: "uuid"
+        - name: "string"
+        - rules: "array[escalation_rule]"
+        - team_id: "uuid"
+        - enabled: "boolean"
+      
+    escalation_rule:
+      aggregate_root: false
+      parent: "escalation_policy"
+      properties:
+        - level: "integer"
+        - delay: "duration"
+        - notification_channels: "array[string]"
+        - auto_resolve: "boolean"
+
+  value_objects:
+    alert_severity:
+      properties:
+        - level: "critical|warning|info"
+        - priority: "integer"
+        - escalation_required: "boolean"
+      validations:
+        - "Critical alerts must have priority 1"
+        - "Warning alerts must have priority 2"
+        - "Info alerts must have priority 3"
+    
+    promql_expression:
+      properties:
+        - query: "string"
+        - validity: "boolean"
+        - syntax_errors: "array[string]"
+      validations:
+        - "Must be valid PromQL syntax"
+        - "Cannot reference undefined metrics"
+
+# Visualization Domain Entities
+visualization_domain:
+  entities:
+    dashboard:
+      aggregate_root: true
+      properties:
+        - id: "uuid"
+        - title: "string"
+        - description: "string"
+        - tags: "array[string]"
+        - panels: "array[panel]"
+        - variables: "array[dashboard_variable]"
+        - time_range: "time_range"
+        - refresh_interval: "duration"
+        - created_at: "datetime"
+        - updated_at: "datetime"
+        - created_by: "string"
+        - shared: "boolean"
+        - folder_id: "uuid"
+      business_rules:
+        - "Dashboard titles must be unique within folder"
+        - "Panels must have unique IDs within dashboard"
+        - "Variables must be referenced by at least one panel"
+      
+    panel:
+      aggregate_root: false
+      parent: "dashboard"
+      properties:
+        - id: "uuid"
+        - title: "string"
+        - type: "graph|singlestat|table|heatmap|gauge|bar"
+        - targets: "array[query_target]"
+        - position: "panel_position"
+        - size: "panel_size"
+        - options: "map[string]interface{}"
+        - thresholds: "array[threshold]"
+        - alerts: "array[panel_alert]"
+      
+    query_target:
+      aggregate_root: false
+      parent: "panel"
+      properties:
+        - id: "string"
+        - expression: "string"
+        - datasource: "string"
+        - legend: "string"
+        - interval: "duration"
+        - format: "time_series|table|heatmap"
+      
+    dashboard_folder:
+      aggregate_root: true
+      properties:
+        - id: "uuid"
+        - title: "string"
+        - parent_id: "uuid"
+        - permissions: "array[folder_permission]"
+        - created_at: "datetime"
+
+  value_objects:
+    panel_position:
+      properties:
+        - x: "integer"
+        - y: "integer"
+        - w: "integer"
+        - h: "integer"
+      validations:
+        - "Coordinates must be non-negative"
+        - "Width and height must be positive"
+    
+    time_range:
+      properties:
+        - from: "string"  # relative or absolute
+        - to: "string"    # relative or absolute
+      validations:
+        - "From time must be before to time"
+        - "Relative times must use valid units"
+
+# Log Processing Domain Entities
+log_domain:
+  entities:
+    log_entry:
+      aggregate_root: true
+      properties:
+        - id: "uuid"
+        - timestamp: "datetime"
+        - level: "debug|info|warn|error|fatal"
+        - message: "string"
+        - source: "string"
+        - facility: "string"
+        - hostname: "string"
+        - application: "string"
+        - process_id: "string"
+        - structured_data: "map[string]interface{}"
+        - raw_message: "string"
+        - parsed: "boolean"
+        - indexed_at: "datetime"
+      business_rules:
+        - "Timestamp must be valid RFC3339 format"
+        - "Level must be from predefined set"
+        - "Source must be trackable to device/service"
+      
+    log_stream:
+      aggregate_root: true
+      properties:
+        - id: "uuid"
+        - name: "string"
+        - source_type: "syslog|file|api|stream"
+        - pattern: "string"
+        - parser_config: "parser_configuration"
+        - retention_policy: "string"
+        - index_pattern: "string"
+        - enabled: "boolean"
+      
+    log_index:
+      aggregate_root: true
+      properties:
+        - name: "string"
+        - pattern: "string"
+        - settings: "index_settings"
+        - mappings: "index_mappings"
+        - lifecycle_policy: "string"
+        - creation_date: "datetime"
+        - size_bytes: "integer"
+        - document_count: "integer"
+      
+    search_query:
+      aggregate_root: true
+      properties:
+        - id: "uuid"
+        - query: "string"
+        - filters: "array[search_filter]"
+        - time_range: "time_range"
+        - sort: "array[sort_field]"
+        - aggregations: "map[string]aggregation"
+        - created_by: "string"
+        - created_at: "datetime"
+        - saved: "boolean"
+
+  value_objects:
+    log_level:
+      properties:
+        - name: "string"
+        - numeric_value: "integer"
+        - color: "string"
+      validations:
+        - "Name must be from standard set"
+        - "Numeric value must be 0-5"
+    
+    parser_configuration:
+      properties:
+        - type: "grok|json|csv|regex"
+        - pattern: "string"
+        - field_mappings: "map[string]string"
+        - multiline_config: "multiline_settings"
+
+# Cross-Domain Entities
+shared_entities:
+  threshold:
+    properties:
+      - id: "uuid"
+      - name: "string"
+      - metric_name: "string"
+      - operator: "gt|gte|lt|lte|eq|ne"
+      - value: "float64"
+      - severity: "critical|warning|info"
+      - duration: "duration"
+      - enabled: "boolean"
+    business_rules:
+      - "Threshold values must be numeric"
+      - "Duration must be positive"
+      - "Metric name must exist"
+  
+  data_source:
+    properties:
+      - id: "uuid"
+      - name: "string"
+      - type: "prometheus|influxdb|elasticsearch|loki"
+      - url: "string"
+      - credentials: "data_source_credentials"
+      - health_check_url: "string"
+      - timeout: "duration"
+      - enabled: "boolean"
+  
+  team:
+    properties:
+      - id: "uuid"
+      - name: "string"
+      - description: "string"
+      - members: "array[team_member]"
+      - permissions: "array[permission]"
+      - notification_preferences: "notification_settings"
+  
+  user:
+    properties:
+      - id: "uuid"
+      - username: "string"
+      - email: "string"
+      - role: "admin|editor|viewer"
+      - teams: "array[uuid]"
+      - preferences: "user_preferences"
+      - last_login: "datetime"
+      - enabled: "boolean"

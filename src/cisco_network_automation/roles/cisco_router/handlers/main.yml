@@ -1,0 +1,39 @@
+---
+# Cisco Router Handlers
+# Event-driven tasks for router configuration changes
+
+- name: save router config
+  ios_config:
+    save_when: modified
+  listen: "save config"
+
+- name: reload router interfaces
+  ios_command:
+    commands:
+      - shutdown
+      - no shutdown
+    parents:
+      - interface {{ item }}
+  loop: "{{ changed_interfaces | default([]) }}"
+  listen: "reload interfaces"
+
+- name: restart routing process
+  ios_command:
+    commands:
+      - clear ip route *
+  listen: "restart routing"
+
+- name: verify router connectivity
+  ios_ping:
+    dest: "{{ internet_test_host }}"
+    count: 3
+  listen: "test connectivity"
+
+- name: backup running config
+  ios_config:
+    backup: yes
+    backup_options:
+      filename: "{{ inventory_hostname }}_{{ ansible_date_time.epoch }}.cfg"
+      dir_path: "{{ playbook_dir }}/backups/"
+  delegate_to: localhost
+  listen: "backup config"

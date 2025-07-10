@@ -1,0 +1,73 @@
+---
+# Pre-commit hooks for Enterprise Network Deployment
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: https://github.com/ansible/ansible-lint
+    rev: v6.22.2
+    hooks:
+      - id: ansible-lint
+        name: Ansible Lint
+        description: Run ansible-lint on playbooks and roles
+        entry: ansible-lint
+        language: python
+        files: \.(yml|yaml)$
+        args:
+          - --profile=production
+          - --strict
+        exclude: |
+          (?x)^(
+              .*vault.*|
+              .*logs/.*|
+              .*backups/.*|
+              .*\.git/.*|
+              .*vault-password-script\.sh
+          )$
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        name: YAML Lint
+        args:
+          - --config-data
+          - |
+            extends: default
+            rules:
+              line-length:
+                max: 120
+              truthy:
+                allowed-values: ['true', 'false']
+        exclude: |
+          (?x)^(
+              .*vault.*|
+              .*logs/.*|
+              .*backups/.*
+          )$
+
+  - repo: local
+    hooks:
+      - id: security-scan
+        name: Security Scan
+        entry: bash
+        language: system
+        files: \.(yml|yaml)$
+        args:
+          - -c
+          - |
+            echo "Running security scan..."
+            if grep -r "password.*:" . --include="*.yml" --exclude-dir=vault | grep -v vault_; then
+              echo "ERROR: Hardcoded passwords detected!"
+              exit 1
+            fi
+            echo "Security scan passed."

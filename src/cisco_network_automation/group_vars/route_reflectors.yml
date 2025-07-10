@@ -1,0 +1,363 @@
+---
+# Route Reflectors Configuration Variables
+# BGP Route Reflection for scalable BGP deployment
+
+# Global Route Reflector Settings
+route_reflector_type: "bgp_route_reflector"
+management_network: "10.0.0.0/16"
+rr_vrf: "RR"
+ospf_process_id: 1
+bgp_process_id: 65001
+
+# OSPF Configuration for Route Reflectors
+ospf_config:
+  process_id: "{{ ospf_process_id }}"
+  router_id: "{{ router_id }}"
+  area_config:
+    - area_id: 0
+      area_type: backbone
+      authentication: message-digest
+      networks:
+        - network: "10.0.0.0"
+          wildcard: "0.0.255.255"
+          area: 0
+  timers:
+    hello: 10
+    dead: 40
+    retransmit: 5
+    transmit_delay: 1
+  authentication:
+    key_id: 1
+    key: "{{ vault_ospf_auth_key }}"
+    algorithm: md5
+  passive_interfaces:
+    - "Loopback0"
+    - "Ethernet0/2"
+    - "Ethernet0/3"
+
+# BGP Configuration for Route Reflectors
+bgp_config:
+  asn: "{{ bgp_asn }}"
+  router_id: "{{ router_id }}"
+  log_neighbor_changes: yes
+  synchronization: no
+  auto_summary: no
+  cluster_id: "{{ cluster_id }}"
+  bestpath:
+    as_path_multipath_relax: yes
+    compare_routerid: yes
+    med_confed: yes
+  timers:
+    keepalive: 60
+    holdtime: 180
+  route_reflector_clients:
+    - ip: "10.0.1.10"
+      remote_as: 65001
+      update_source: "Loopback0"
+      description: "Core Router 1"
+      route_reflector_client: yes
+    - ip: "10.0.1.11"
+      remote_as: 65001
+      update_source: "Loopback0"
+      description: "Core Router 2"
+      route_reflector_client: yes
+    - ip: "10.0.1.12"
+      remote_as: 65001
+      update_source: "Loopback0"
+      description: "Core Router 3"
+      route_reflector_client: yes
+    - ip: "10.0.2.10"
+      remote_as: 65001
+      update_source: "Loopback0"
+      description: "Distribution Router 1"
+      route_reflector_client: yes
+    - ip: "10.0.2.11"
+      remote_as: 65001
+      update_source: "Loopback0"
+      description: "Distribution Router 2"
+      route_reflector_client: yes
+    - ip: "10.0.2.12"
+      remote_as: 65001
+      update_source: "Loopback0"
+      description: "Distribution Router 3"
+      route_reflector_client: yes
+    - ip: "10.0.2.13"
+      remote_as: 65001
+      update_source: "Loopback0"
+      description: "Distribution Router 4"
+      route_reflector_client: yes
+    - ip: "10.0.3.10"
+      remote_as: 65001
+      update_source: "Loopback0"
+      description: "Edge Router 1"
+      route_reflector_client: yes
+    - ip: "10.0.3.11"
+      remote_as: 65001
+      update_source: "Loopback0"
+      description: "Edge Router 2"
+      route_reflector_client: yes
+    - ip: "10.0.3.12"
+      remote_as: 65001
+      update_source: "Loopback0"
+      description: "Edge Router 3"
+      route_reflector_client: yes
+  route_reflector_peers:
+    - ip: "{{ '10.0.4.11' if cluster_id == '10.0.4.10' else '10.0.4.10' }}"
+      remote_as: 65001
+      update_source: "Loopback0"
+      description: "Route Reflector Peer"
+  address_families:
+    - afi: ipv4
+      safi: unicast
+      networks:
+        - network: "10.0.4.0"
+          mask: "255.255.255.0"
+      redistribute:
+        - protocol: connected
+          route_map: "CONNECTED-TO-BGP-RR"
+
+# Route Maps for Route Reflectors
+route_maps:
+  - name: "CONNECTED-TO-BGP-RR"
+    action: permit
+    sequence: 10
+    match:
+      - "ip address prefix-list CONNECTED-NETWORKS-RR"
+    set:
+      - "metric 50"
+      - "local-preference 300"
+      - "community 65001:400"
+  - name: "RR-ORIGINATE-FILTER"
+    action: permit
+    sequence: 10
+    match:
+      - "ip address prefix-list RR-ORIGINATE-NETWORKS"
+    set:
+      - "origin igp"
+      - "community 65001:500"
+
+# Prefix Lists for Route Reflectors
+prefix_lists:
+  - name: "CONNECTED-NETWORKS-RR"
+    entries:
+      - seq: 5
+        action: permit
+        network: "10.0.4.0/24"
+      - seq: 10
+        action: permit
+        network: "{{ router_id }}/32"
+  - name: "RR-ORIGINATE-NETWORKS"
+    entries:
+      - seq: 5
+        action: permit
+        network: "10.0.4.0/24"
+      - seq: 10
+        action: deny
+        network: "0.0.0.0/0"
+        le: 32
+
+# Interface Configuration for Route Reflectors
+interfaces:
+  loopback:
+    - id: 0
+      ip: "{{ router_id }}"
+      mask: "255.255.255.255"
+      description: "Router ID and BGP Update Source"
+    - id: 1
+      ip: "10.0.4.{{ ansible_host.split('.')[3] }}"
+      mask: "255.255.255.255"
+      description: "Route Reflector Management Interface"
+  ethernet:
+    - id: "0/0"
+      description: "Connection to Core Router 1"
+      ip: "10.0.40.{{ ansible_host.split('.')[3] }}"
+      mask: "255.255.255.252"
+      ospf_area: 0
+      ospf_cost: 1
+      ospf_priority: 0
+    - id: "0/1"
+      description: "Connection to Core Router 2"
+      ip: "10.0.41.{{ ansible_host.split('.')[3] }}"
+      mask: "255.255.255.252"
+      ospf_area: 0
+      ospf_cost: 1
+      ospf_priority: 0
+    - id: "0/2"
+      description: "Management Interface"
+      ip: "10.0.100.{{ ansible_host.split('.')[3] }}"
+      mask: "255.255.255.0"
+      shutdown: no
+      access_group:
+        in: "MGMT-IN"
+    - id: "0/3"
+      description: "Reserved for Monitoring"
+      shutdown: yes
+
+# Security Configuration for Route Reflectors
+security:
+  enable_secret: "{{ vault_cisco_enable_password }}"
+  local_users:
+    - username: "{{ vault_cisco_username }}"
+      password: "{{ vault_cisco_password }}"
+      privilege: 15
+      secret: "{{ vault_cisco_user_secret }}"
+  aaa:
+    new_model: yes
+    authentication:
+      login: "default group tacacs+ local"
+      enable: "default group tacacs+ enable"
+    authorization:
+      exec: "default group tacacs+ local"
+      commands: "15 default group tacacs+ local"
+  tacacs:
+    server: "{{ vault_tacacs_server }}"
+    key: "{{ vault_tacacs_key }}"
+    timeout: 5
+    retransmit: 3
+
+# Access Control Lists for Route Reflectors
+access_lists:
+  - name: "MGMT-IN"
+    type: extended
+    entries:
+      - seq: 10
+        action: permit
+        protocol: tcp
+        source: "{{ vault_mgmt_network }}"
+        source_wildcard: "0.0.0.255"
+        destination: "any"
+        destination_port: "eq 22"
+      - seq: 20
+        action: permit
+        protocol: tcp
+        source: "{{ vault_mgmt_network }}"
+        source_wildcard: "0.0.0.255"
+        destination: "any"
+        destination_port: "eq 23"
+      - seq: 30
+        action: permit
+        protocol: udp
+        source: "{{ vault_mgmt_network }}"
+        source_wildcard: "0.0.0.255"
+        destination: "any"
+        destination_port: "eq 161"
+      - seq: 40
+        action: permit
+        protocol: icmp
+        source: "{{ vault_mgmt_network }}"
+        source_wildcard: "0.0.0.255"
+        destination: "any"
+      - seq: 50
+        action: deny
+        protocol: ip
+        source: "any"
+        destination: "any"
+        log: yes
+  - name: "SNMP-RO-ACL"
+    type: standard
+    entries:
+      - seq: 10
+        action: permit
+        source: "{{ vault_snmp_mgmt_network }}"
+        source_wildcard: "0.0.0.255"
+      - seq: 20
+        action: deny
+        source: "any"
+  - name: "SNMP-RW-ACL"
+    type: standard
+    entries:
+      - seq: 10
+        action: permit
+        source: "{{ vault_snmp_mgmt_network }}"
+        source_wildcard: "0.0.0.15"
+      - seq: 20
+        action: deny
+        source: "any"
+
+# NTP Configuration
+ntp:
+  servers:
+    - ip: "{{ vault_ntp_server_primary }}"
+      version: 4
+      prefer: yes
+    - ip: "{{ vault_ntp_server_secondary }}"
+      version: 4
+  timezone: "PST -8"
+  summer_time: "PDT recurring"
+
+# SNMP Configuration for Route Reflectors
+snmp:
+  communities:
+    - name: "{{ vault_snmp_ro_community }}"
+      permission: ro
+      acl: "SNMP-RO-ACL"
+    - name: "{{ vault_snmp_rw_community }}"
+      permission: rw
+      acl: "SNMP-RW-ACL"
+  contact: "Network Operations <netops@company.com>"
+  location: "Route Reflector - Cluster {{ cluster_id }}"
+  trap_source: "Loopback0"
+  traps:
+    - "snmp authentication linkdown linkup"
+    - "ospf state-change"
+    - "bgp"
+
+# Logging Configuration
+logging:
+  buffered: 16384
+  console: "warnings"
+  monitor: "warnings"
+  trap: "informational"
+  facility: "local7"
+  source_interface: "Loopback0"
+  hosts:
+    - ip: "{{ vault_syslog_server }}"
+      facility: "local7"
+      level: "informational"
+
+# BGP Monitoring and Troubleshooting
+bgp_monitoring:
+  soft_reconfiguration: yes
+  route_refresh: yes
+  graceful_restart: yes
+  graceful_restart_time: 120
+  stalepath_time: 360
+  update_delay: 120
+  scan_time: 60
+  table_map: "BGP-TABLE-MAP"
+  distance:
+    external: 20
+    internal: 200
+    local: 200
+
+# Community Lists for Route Reflectors
+community_lists:
+  - name: "CUSTOMER-COMMUNITIES"
+    type: standard
+    entries:
+      - seq: 10
+        action: permit
+        community: "65001:100"
+      - seq: 20
+        action: permit
+        community: "65001:200"
+  - name: "INTERNAL-COMMUNITIES"
+    type: standard
+    entries:
+      - seq: 10
+        action: permit
+        community: "65001:400"
+      - seq: 20
+        action: permit
+        community: "65001:500"
+
+# Route Reflector Redundancy
+redundancy:
+  cluster_list_length: 2
+  originator_id_check: yes
+  client_to_client_reflection: yes
+  cluster_id_check: yes
+  next_hop_self_all: no
+  soft_reconfiguration_inbound: yes
+  route_refresh_capability: yes
+EOF < /dev/null

@@ -1,0 +1,54 @@
+---
+# Traffic Shaping Tasks
+# Configures traffic shaping policies
+
+- name: Configure traffic shaping class maps
+  cisco.ios.ios_config:
+    lines:
+      - class-map match-any {{ item.class_name }}
+      - match {{ item.match_criteria }}
+    match: line
+  loop: "{{ shaping_class_maps }}"
+  when: shaping_class_maps is defined
+
+- name: Configure traffic shaping policy maps
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - shape average {{ item.average_rate }}
+      - shape peak {{ item.peak_rate }}
+    match: line
+  loop: "{{ shaping_policies }}"
+  when: shaping_policies is defined
+
+- name: Apply shaping policies to interfaces
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - service-policy output {{ item.policy_name }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ shaping_interface_bindings }}"
+  when: shaping_interface_bindings is defined
+
+- name: Configure hierarchical shaping
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.parent_policy }}
+      - class {{ item.parent_class }}
+      - shape average {{ item.total_bandwidth }}
+      - service-policy {{ item.child_policy }}
+    match: line
+  loop: "{{ hierarchical_shaping }}"
+  when: hierarchical_shaping is defined
+
+- name: Configure adaptive shaping
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - shape adaptive {{ item.min_rate }}
+    match: line
+  loop: "{{ adaptive_shaping }}"
+  when: adaptive_shaping is defined

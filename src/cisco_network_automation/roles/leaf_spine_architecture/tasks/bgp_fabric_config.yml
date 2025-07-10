@@ -1,0 +1,67 @@
+---
+# BGP Fabric Configuration Tasks
+# Configures BGP for leaf-spine fabric overlay
+
+- name: Configure BGP routing process
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - bgp log-neighbor-changes
+      - bgp bestpath as-path multipath-relax
+      - no bgp default ipv4-unicast
+      - bgp router-id {{ bgp_router_id }}
+    match: line
+
+- name: Configure BGP address families
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - address-family ipv4 unicast
+      - network {{ item.network }} mask {{ item.mask }}
+      - exit-address-family
+    match: line
+  loop: "{{ bgp_advertised_networks }}"
+  when: bgp_advertised_networks is defined
+
+- name: Configure BGP EVPN address family
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - address-family l2vpn evpn
+      - neighbor {{ item.neighbor }} activate
+      - neighbor {{ item.neighbor }} send-community extended
+      - exit-address-family
+    match: line
+  loop: "{{ bgp_evpn_neighbors }}"
+  when: bgp_evpn_enabled | bool and bgp_evpn_neighbors is defined
+
+- name: Configure BGP fabric neighbors
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - neighbor {{ item.neighbor }} remote-as {{ item.remote_as }}
+      - neighbor {{ item.neighbor }} update-source {{ item.update_source }}
+      - neighbor {{ item.neighbor }} description {{ item.description }}
+      - neighbor {{ item.neighbor }} password {{ item.password }}
+    match: line
+  loop: "{{ bgp_fabric_neighbors }}"
+  when: bgp_fabric_neighbors is defined
+
+- name: Configure BGP route reflector settings
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - neighbor {{ item.neighbor }} route-reflector-client
+    match: line
+  loop: "{{ bgp_route_reflector_clients }}"
+  when: datacenter_role == 'spine' and bgp_route_reflector_clients is defined
+
+- name: Configure BGP maximum paths
+  cisco.ios.ios_config:
+    lines:
+      - router bgp {{ bgp_as }}
+      - address-family ipv4 unicast
+      - maximum-paths 64
+      - maximum-paths ibgp 64
+      - exit-address-family
+    match: line

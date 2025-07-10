@@ -1,0 +1,62 @@
+---
+# Bandwidth Allocation Tasks
+# Configures bandwidth allocation policies
+
+- name: Configure bandwidth allocation class maps
+  cisco.ios.ios_config:
+    lines:
+      - class-map match-any {{ item.class_name }}
+      - match {{ item.match_criteria }}
+    match: line
+  loop: "{{ bandwidth_class_maps }}"
+  when: bandwidth_class_maps is defined
+
+- name: Configure bandwidth allocation policies
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - bandwidth {{ item.bandwidth_type }} {{ item.bandwidth_value }}
+    match: line
+  loop: "{{ bandwidth_allocation_policies }}"
+  when: bandwidth_allocation_policies is defined
+
+- name: Configure priority queuing
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - priority {{ item.priority_bandwidth }}
+    match: line
+  loop: "{{ priority_queue_policies }}"
+  when: priority_queue_policies is defined
+
+- name: Configure fair queuing
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - fair-queue {{ item.queue_count }}
+    match: line
+  loop: "{{ fair_queue_policies }}"
+  when: fair_queue_policies is defined
+
+- name: Configure weighted fair queuing
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - fair-queue {{ item.congestive_discard_threshold }} {{ item.dynamic_queues }} {{ item.reservable_queues }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ wfq_interfaces }}"
+  when: wfq_interfaces is defined
+
+- name: Apply bandwidth allocation to interfaces
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - service-policy output {{ item.policy_name }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ bandwidth_interface_bindings }}"
+  when: bandwidth_interface_bindings is defined

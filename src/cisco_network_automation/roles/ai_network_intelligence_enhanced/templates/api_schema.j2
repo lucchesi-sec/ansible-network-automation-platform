@@ -1,0 +1,1375 @@
+# API Schema Template for AI Network Intelligence Enhanced
+# OpenAPI 3.0 specification for ML/AI platform APIs
+
+openapi: 3.0.3
+info:
+  title: AI Network Intelligence Enhanced API
+  version: {{ api_version | default('1.0.0') }}
+  description: |
+    Comprehensive API for AI/ML-driven network automation and intelligence platform.
+    
+    This API provides endpoints for:
+    - ML model management and deployment
+    - Real-time and batch predictions
+    - Automation rule and workflow management
+    - Network anomaly detection and analysis
+    - ChatOps integration and notifications
+    
+  contact:
+    name: AI Network Intelligence Team
+    email: ai-team@{{ ansible_domain | default('company.local') }}
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: {{ serving_config.api_gateway.ssl_enabled | ternary('https', 'http') }}://{{ serving_config.api_gateway.host }}:{{ serving_config.api_gateway.port }}/api/v1
+    description: Production API Gateway
+  - url: http://localhost:8080/api/v1
+    description: Development Server
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
+paths:
+  # Model Management Endpoints
+  /models:
+    get:
+      summary: List ML models
+      description: Retrieve a list of all ML models with filtering options
+      tags: [Model Management]
+      parameters:
+        - name: type
+          in: query
+          description: Filter by model type
+          schema:
+            type: string
+            enum: [anomaly_detection, traffic_prediction, performance_optimization, security_threat_detection]
+        - name: status
+          in: query
+          description: Filter by model status
+          schema:
+            type: string
+            enum: [created, training, trained, deployed, retired]
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of models
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  models:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModelSummary'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      summary: Create new ML model
+      description: Create a new ML model configuration
+      tags: [Model Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateModelRequest'
+      responses:
+        '201':
+          description: Model created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /models/{modelId}:
+    get:
+      summary: Get model details
+      description: Retrieve detailed information about a specific ML model
+      tags: [Model Management]
+      parameters:
+        - name: modelId
+          in: path
+          required: true
+          description: Unique model identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Model details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    put:
+      summary: Update model
+      description: Update model configuration and metadata
+      tags: [Model Management]
+      parameters:
+        - name: modelId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateModelRequest'
+      responses:
+        '200':
+          description: Model updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      summary: Delete model
+      description: Delete a model and all associated resources
+      tags: [Model Management]
+      parameters:
+        - name: modelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Model deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /models/{modelId}/train:
+    post:
+      summary: Start model training
+      description: Initiate training process for a model
+      tags: [Model Training]
+      parameters:
+        - name: modelId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingRequest'
+      responses:
+        '202':
+          description: Training started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /models/{modelId}/deploy:
+    post:
+      summary: Deploy model
+      description: Deploy a trained model to specified environment
+      tags: [Model Deployment]
+      parameters:
+        - name: modelId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentRequest'
+      responses:
+        '202':
+          description: Deployment started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Prediction Endpoints
+  /predictions:
+    post:
+      summary: Make prediction
+      description: Make real-time prediction using deployed models
+      tags: [Predictions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictionRequest'
+      responses:
+        '200':
+          description: Prediction result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /predictions/batch:
+    post:
+      summary: Batch prediction
+      description: Submit batch prediction job
+      tags: [Predictions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchPredictionRequest'
+      responses:
+        '202':
+          description: Batch job started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchJob'
+
+  /predictions/{predictionId}/explain:
+    get:
+      summary: Explain prediction
+      description: Get explanation for a specific prediction
+      tags: [Explainable AI]
+      parameters:
+        - name: predictionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Prediction explanation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictionExplanation'
+
+  # Anomaly Detection Endpoints
+  /anomalies:
+    get:
+      summary: List anomalies
+      description: Retrieve detected network anomalies
+      tags: [Anomaly Detection]
+      parameters:
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [detected, investigating, resolved, false_positive]
+        - name: device_id
+          in: query
+          schema:
+            type: string
+        - name: time_range
+          in: query
+          schema:
+            type: string
+            enum: [1h, 24h, 7d, 30d]
+            default: 24h
+      responses:
+        '200':
+          description: List of anomalies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  anomalies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Anomaly'
+                  summary:
+                    $ref: '#/components/schemas/AnomalySummary'
+
+  /anomalies/{anomalyId}:
+    get:
+      summary: Get anomaly details
+      description: Retrieve detailed information about a specific anomaly
+      tags: [Anomaly Detection]
+      parameters:
+        - name: anomalyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Anomaly details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnomalyDetail'
+
+  /anomalies/{anomalyId}/investigate:
+    post:
+      summary: Start anomaly investigation
+      description: Initiate automated investigation for an anomaly
+      tags: [Anomaly Detection]
+      parameters:
+        - name: anomalyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Investigation started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Investigation'
+
+  # Automation Endpoints
+  /automation/rules:
+    get:
+      summary: List automation rules
+      description: Retrieve configured automation rules
+      tags: [Automation]
+      responses:
+        '200':
+          description: List of automation rules
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AutomationRule'
+    
+    post:
+      summary: Create automation rule
+      description: Create new automation rule
+      tags: [Automation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAutomationRuleRequest'
+      responses:
+        '201':
+          description: Rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationRule'
+
+  /automation/rules/{ruleId}/execute:
+    post:
+      summary: Execute automation rule
+      description: Manually trigger execution of an automation rule
+      tags: [Automation]
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutionContext'
+      responses:
+        '202':
+          description: Execution started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionResult'
+
+  /automation/workflows:
+    get:
+      summary: List workflows
+      description: Retrieve available automation workflows
+      tags: [Workflows]
+      responses:
+        '200':
+          description: List of workflows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workflows:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workflow'
+    
+    post:
+      summary: Create workflow
+      description: Create new automation workflow
+      tags: [Workflows]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowRequest'
+      responses:
+        '201':
+          description: Workflow created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+
+  /automation/workflows/{workflowId}/execute:
+    post:
+      summary: Execute workflow
+      description: Start execution of a workflow
+      tags: [Workflows]
+      parameters:
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '202':
+          description: Workflow execution started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowExecution'
+
+  # ChatOps Endpoints
+  /chatops/notifications:
+    post:
+      summary: Send ChatOps notification
+      description: Send notification to configured chat platforms
+      tags: [ChatOps]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatNotificationRequest'
+      responses:
+        '200':
+          description: Notification sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+
+  /chatops/commands:
+    get:
+      summary: List available commands
+      description: Get list of available ChatOps commands
+      tags: [ChatOps]
+      responses:
+        '200':
+          description: Available commands
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  commands:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChatCommand'
+
+  # Health and Status Endpoints
+  /health:
+    get:
+      summary: Health check
+      description: Check API health status
+      tags: [System]
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /metrics:
+    get:
+      summary: System metrics
+      description: Retrieve system performance metrics
+      tags: [System]
+      responses:
+        '200':
+          description: System metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemMetrics'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    # Model Schemas
+    Model:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique model identifier
+        name:
+          type: string
+          description: Human-readable model name
+        type:
+          $ref: '#/components/schemas/ModelType'
+        version:
+          type: string
+          description: Model version
+        status:
+          type: string
+          enum: [created, training, trained, deployed, retired]
+        metadata:
+          type: object
+          additionalProperties: true
+        performance_metrics:
+          $ref: '#/components/schemas/PerformanceMetrics'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, name, type, version, status]
+
+    ModelSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/ModelType'
+        version:
+          type: string
+        status:
+          type: string
+        accuracy:
+          type: number
+          format: float
+        last_trained:
+          type: string
+          format: date-time
+
+    ModelType:
+      type: object
+      properties:
+        category:
+          type: string
+          enum: [anomaly_detection, traffic_prediction, performance_optimization, security_threat_detection]
+        algorithm:
+          type: string
+        framework:
+          type: string
+      required: [category, algorithm, framework]
+
+    PerformanceMetrics:
+      type: object
+      properties:
+        accuracy:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        precision:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        recall:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        f1_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        auc_roc:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        training_time:
+          type: string
+          description: Training duration in ISO 8601 format
+        inference_latency:
+          type: string
+          description: Average inference latency in ISO 8601 format
+
+    CreateModelRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        type:
+          $ref: '#/components/schemas/ModelType'
+        description:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+      required: [name, type]
+
+    UpdateModelRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+
+    # Training Schemas
+    TrainingRequest:
+      type: object
+      properties:
+        dataset_id:
+          type: string
+        hyperparameters:
+          type: object
+          additionalProperties: true
+        training_config:
+          type: object
+          properties:
+            epochs:
+              type: integer
+              minimum: 1
+            batch_size:
+              type: integer
+              minimum: 1
+            learning_rate:
+              type: number
+              format: float
+              minimum: 0
+      required: [dataset_id]
+
+    TrainingJob:
+      type: object
+      properties:
+        job_id:
+          type: string
+        model_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed, cancelled]
+        progress:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        started_at:
+          type: string
+          format: date-time
+        estimated_completion:
+          type: string
+          format: date-time
+
+    # Deployment Schemas
+    DeploymentRequest:
+      type: object
+      properties:
+        environment:
+          type: string
+          enum: [development, staging, production]
+          default: staging
+        scaling_config:
+          type: object
+          properties:
+            min_replicas:
+              type: integer
+              minimum: 1
+            max_replicas:
+              type: integer
+              minimum: 1
+            target_cpu_utilization:
+              type: integer
+              minimum: 1
+              maximum: 100
+        resource_limits:
+          type: object
+          properties:
+            cpu:
+              type: string
+            memory:
+              type: string
+            gpu:
+              type: integer
+      required: [environment]
+
+    DeploymentJob:
+      type: object
+      properties:
+        deployment_id:
+          type: string
+        model_id:
+          type: string
+        environment:
+          type: string
+        status:
+          type: string
+          enum: [deploying, deployed, failed, rollback]
+        endpoint_url:
+          type: string
+          format: uri
+        deployed_at:
+          type: string
+          format: date-time
+
+    # Prediction Schemas
+    PredictionRequest:
+      type: object
+      properties:
+        model_id:
+          type: string
+        input_data:
+          type: object
+          additionalProperties: true
+        options:
+          type: object
+          properties:
+            explain:
+              type: boolean
+              default: false
+            confidence_threshold:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 1
+      required: [model_id, input_data]
+
+    PredictionResponse:
+      type: object
+      properties:
+        prediction_id:
+          type: string
+        result:
+          type: object
+          additionalProperties: true
+        confidence:
+          type: number
+          format: float
+        model_version:
+          type: string
+        processing_time_ms:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        explanation:
+          $ref: '#/components/schemas/PredictionExplanation'
+
+    PredictionExplanation:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [shap, lime, integrated_gradients]
+        feature_importance:
+          type: array
+          items:
+            type: object
+            properties:
+              feature:
+                type: string
+              importance:
+                type: number
+                format: float
+        decision_path:
+          type: array
+          items:
+            type: string
+
+    BatchPredictionRequest:
+      type: object
+      properties:
+        model_id:
+          type: string
+        input_source:
+          type: string
+          description: Data source URI
+        output_destination:
+          type: string
+          description: Output destination URI
+        batch_size:
+          type: integer
+          minimum: 1
+          default: 1000
+      required: [model_id, input_source, output_destination]
+
+    BatchJob:
+      type: object
+      properties:
+        job_id:
+          type: string
+        model_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        progress:
+          type: object
+          properties:
+            processed:
+              type: integer
+            total:
+              type: integer
+            percentage:
+              type: number
+              format: float
+        started_at:
+          type: string
+          format: date-time
+        estimated_completion:
+          type: string
+          format: date-time
+
+    # Anomaly Schemas
+    Anomaly:
+      type: object
+      properties:
+        id:
+          type: string
+        device_id:
+          type: string
+        type:
+          type: string
+          enum: [traffic, performance, security, configuration]
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        confidence:
+          type: number
+          format: float
+        description:
+          type: string
+        detected_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [detected, investigating, resolved, false_positive]
+
+    AnomalyDetail:
+      allOf:
+        - $ref: '#/components/schemas/Anomaly'
+        - type: object
+          properties:
+            features:
+              type: object
+              additionalProperties: true
+            baseline_values:
+              type: object
+              additionalProperties: true
+            investigation_history:
+              type: array
+              items:
+                $ref: '#/components/schemas/Investigation'
+
+    AnomalySummary:
+      type: object
+      properties:
+        total_count:
+          type: integer
+        severity_distribution:
+          type: object
+          properties:
+            critical:
+              type: integer
+            high:
+              type: integer
+            medium:
+              type: integer
+            low:
+              type: integer
+        top_devices:
+          type: array
+          items:
+            type: object
+            properties:
+              device_id:
+                type: string
+              count:
+                type: integer
+
+    Investigation:
+      type: object
+      properties:
+        id:
+          type: string
+        anomaly_id:
+          type: string
+        investigator:
+          type: string
+        status:
+          type: string
+          enum: [started, in_progress, completed, cancelled]
+        findings:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    # Automation Schemas
+    AutomationRule:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        triggers:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationTrigger'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationCondition'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationAction'
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    AutomationTrigger:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [anomaly_detected, threshold_exceeded, schedule, webhook]
+        parameters:
+          type: object
+          additionalProperties: true
+
+    AutomationCondition:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [device_match, severity_match, time_window, confidence_threshold]
+        parameters:
+          type: object
+          additionalProperties: true
+
+    AutomationAction:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [notification, remediation, workflow_execution, api_call]
+        parameters:
+          type: object
+          additionalProperties: true
+
+    CreateAutomationRuleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        triggers:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationTrigger'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationCondition'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationAction'
+      required: [name, triggers, actions]
+
+    ExecutionContext:
+      type: object
+      properties:
+        source:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+        user_id:
+          type: string
+
+    ExecutionResult:
+      type: object
+      properties:
+        execution_id:
+          type: string
+        status:
+          type: string
+          enum: [started, running, completed, failed]
+        result:
+          type: object
+          additionalProperties: true
+        started_at:
+          type: string
+          format: date-time
+
+    # Workflow Schemas
+    Workflow:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowStep'
+        parameters:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+    WorkflowStep:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+        dependencies:
+          type: array
+          items:
+            type: string
+
+    CreateWorkflowRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowStep'
+      required: [name, steps]
+
+    WorkflowExecution:
+      type: object
+      properties:
+        execution_id:
+          type: string
+        workflow_id:
+          type: string
+        status:
+          type: string
+          enum: [started, running, completed, failed, cancelled]
+        current_step:
+          type: string
+        progress:
+          type: number
+          format: float
+        started_at:
+          type: string
+          format: date-time
+
+    # ChatOps Schemas
+    ChatNotificationRequest:
+      type: object
+      properties:
+        platform:
+          type: string
+          enum: [slack, teams, discord]
+        channel:
+          type: string
+        message:
+          type: object
+          properties:
+            text:
+              type: string
+            blocks:
+              type: array
+              items:
+                type: object
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+          default: normal
+      required: [platform, channel, message]
+
+    NotificationResponse:
+      type: object
+      properties:
+        notification_id:
+          type: string
+        status:
+          type: string
+          enum: [sent, failed, queued]
+        timestamp:
+          type: string
+          format: date-time
+
+    ChatCommand:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        syntax:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        parameters:
+          type: array
+          items:
+            type: object
+
+    # System Schemas
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        components:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status:
+                type: string
+              message:
+                type: string
+
+    SystemMetrics:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        models:
+          type: object
+          properties:
+            total:
+              type: integer
+            deployed:
+              type: integer
+            training:
+              type: integer
+        predictions:
+          type: object
+          properties:
+            total_requests:
+              type: integer
+            success_rate:
+              type: number
+              format: float
+            avg_latency_ms:
+              type: number
+              format: float
+        anomalies:
+          type: object
+          properties:
+            detected_24h:
+              type: integer
+            resolved_24h:
+              type: integer
+            open_critical:
+              type: integer
+
+    # Common Schemas
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        has_next:
+          type: boolean
+        has_prev:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+      required: [error, message]
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+tags:
+  - name: Model Management
+    description: ML model lifecycle management
+  - name: Model Training
+    description: Model training operations
+  - name: Model Deployment
+    description: Model deployment operations
+  - name: Predictions
+    description: Real-time and batch predictions
+  - name: Explainable AI
+    description: Model interpretability and explanations
+  - name: Anomaly Detection
+    description: Network anomaly detection and analysis
+  - name: Automation
+    description: Automation rules and execution
+  - name: Workflows
+    description: Workflow management and execution
+  - name: ChatOps
+    description: Chat platform integration
+  - name: System
+    description: System health and metrics

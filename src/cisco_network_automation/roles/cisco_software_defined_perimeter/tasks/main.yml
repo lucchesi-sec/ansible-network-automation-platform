@@ -1,0 +1,91 @@
+---
+# Software Defined Perimeter Implementation
+# Configures dynamic perimeter security with SDP protocols
+
+- name: Enable software defined perimeter
+  cisco.ios.ios_config:
+    lines:
+      - sdp enable
+      - sdp mode {{ software_defined_perimeter_mode }}
+      - sdp encryption {{ sdp_encryption }}
+      - sdp authentication certificate
+    parents: configure terminal
+
+- name: Configure SDP controller cluster
+  cisco.ios.ios_config:
+    lines:
+      - sdp controller cluster
+      - member {{ item }}
+      - priority auto
+      - failover automatic
+    parents: configure terminal
+  loop: "{{ sdp_controller_cluster }}"
+  when: sdp_controller_cluster is defined
+
+- name: Configure SDP gateways
+  cisco.ios.ios_config:
+    lines:
+      - sdp gateway {{ item.name }}
+      - ip address {{ item.ip }}
+      - port {{ item.port | default(443) }}
+      - certificate {{ item.certificate }}
+      - encryption {{ item.encryption | default('aes256') }}
+      - authentication required
+    parents: configure terminal
+  loop: "{{ sdp_gateways | default([]) }}"
+
+- name: Configure SDP clients
+  cisco.ios.ios_config:
+    lines:
+      - sdp client-group {{ item.name }}
+      - authentication {{ item.auth_method }}
+      - authorization {{ item.authz_method }}
+      - encryption {{ item.encryption }}
+      - access-control {{ item.access_control }}
+    parents: configure terminal
+  loop: "{{ sdp_client_groups | default([]) }}"
+
+- name: Configure SDP access policies
+  cisco.ios.ios_config:
+    lines:
+      - sdp access-policy {{ item.name }}
+      - client-group {{ item.client_group }}
+      - resource-group {{ item.resource_group }}
+      - action {{ item.action }}
+      - conditions {{ item.conditions | default('') }}
+    parents: configure terminal
+  loop: "{{ sdp_access_policies | default([]) }}"
+
+- name: Configure SDP network policies
+  cisco.ios.ios_config:
+    lines:
+      - sdp network-policy {{ item.name }}
+      - source {{ item.source }}
+      - destination {{ item.destination }}
+      - protocol {{ item.protocol }}
+      - action {{ item.action }}
+      - inspection {{ item.inspection | default('enabled') }}
+    parents: configure terminal
+  loop: "{{ sdp_network_policies | default([]) }}"
+
+- name: Enable SDP monitoring
+  cisco.ios.ios_config:
+    lines:
+      - sdp monitoring enable
+      - sdp logging level informational
+      - sdp analytics enabled
+      - sdp threat-detection enabled
+    parents: configure terminal
+
+- name: Verify SDP configuration
+  cisco.ios.ios_command:
+    commands:
+      - show sdp status
+      - show sdp controllers
+      - show sdp gateways
+      - show sdp policies
+  register: sdp_status
+
+- name: Display SDP status
+  debug:
+    var: sdp_status.stdout_lines

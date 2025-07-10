@@ -1,0 +1,44 @@
+---
+# Router Validation Tasks
+# Validates router readiness and prerequisites
+
+- name: Gather router facts
+  ios_facts:
+    gather_subset: all
+  register: router_facts
+  
+- name: Display router information
+  debug:
+    msg:
+      - "Router: {{ inventory_hostname }}"
+      - "Model: {{ router_facts.ansible_facts.ansible_net_model }}"
+      - "Version: {{ router_facts.ansible_facts.ansible_net_version }}"
+      - "Serial: {{ router_facts.ansible_facts.ansible_net_serialnum }}"
+      - "Uptime: {{ router_facts.ansible_facts.ansible_net_uptime }}"
+      
+- name: Validate minimum IOS version
+  fail:
+    msg: "IOS version {{ router_facts.ansible_facts.ansible_net_version }} is not supported"
+  when: router_facts.ansible_facts.ansible_net_version is version(minimum_ios_version, '<')
+  
+- name: Check available memory
+  ios_command:
+    commands:
+      - show memory
+  register: memory_info
+  
+- name: Check interface availability
+  ios_command:
+    commands:
+      - show ip interface brief
+  register: interface_info
+  
+- name: Validate WAN interface exists
+  fail:
+    msg: "WAN interface {{ wan_interface }} not found"
+  when: wan_interface not in interface_info.stdout[0]
+  
+- name: Validate LAN interface exists  
+  fail:
+    msg: "LAN interface {{ lan_interface }} not found"
+  when: lan_interface not in interface_info.stdout[0]

@@ -1,0 +1,65 @@
+---
+# Performance Profiles Tasks
+# Applies performance tuning profiles based on device role
+
+- name: Apply high throughput profile
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - tx-ring-limit 512
+      - hold-queue 2000 in
+      - hold-queue 2000 out
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ high_throughput_interfaces }}"
+  when: 
+    - performance_profiles.high_throughput is defined
+    - high_throughput_interfaces is defined
+
+- name: Apply low latency profile
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - tx-ring-limit 64
+      - hold-queue 100 in
+      - hold-queue 100 out
+      - no fair-queue
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ low_latency_interfaces }}"
+  when: 
+    - performance_profiles.low_latency is defined
+    - low_latency_interfaces is defined
+
+- name: Apply balanced profile
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - tx-ring-limit 256
+      - hold-queue 1000 in
+      - hold-queue 1000 out
+      - fair-queue
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ balanced_interfaces }}"
+  when: 
+    - performance_profiles.balanced is defined
+    - balanced_interfaces is defined
+
+- name: Configure profile-specific buffer settings
+  cisco.ios.ios_config:
+    lines:
+      - buffers huge size {{ item.buffer_size }}
+      - buffers big size {{ item.buffer_size }}
+    match: line
+  loop: "{{ buffer_profile_settings }}"
+  when: buffer_profile_settings is defined
+
+- name: Configure profile-specific queue settings
+  cisco.ios.ios_config:
+    lines:
+      - queue-list {{ item.queue_list }} protocol ip {{ item.queue_number }} list {{ item.acl_number }}
+      - queue-list {{ item.queue_list }} queue {{ item.queue_number }} byte-count {{ item.byte_count }}
+    match: line
+  loop: "{{ queue_profile_settings }}"
+  when: queue_profile_settings is defined

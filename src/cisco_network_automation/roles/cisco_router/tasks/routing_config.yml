@@ -1,0 +1,41 @@
+---
+# Routing Configuration Tasks
+# Configures routing protocols and default routes
+
+- name: Configure default route via DHCP
+  ios_config:
+    lines:
+      - ip route 0.0.0.0 0.0.0.0 dhcp
+  when: wan_dhcp | default(true)
+  
+- name: Configure default route with static gateway
+  ios_config:
+    lines:
+      - ip route 0.0.0.0 0.0.0.0 {{ internet_gateway }}
+  when: not (wan_dhcp | default(true)) and internet_gateway is defined
+  
+- name: Configure static routes
+  ios_config:
+    lines:
+      - ip route {{ item.network }} {{ item.netmask }} {{ item.gateway }}
+  loop: "{{ static_routes }}"
+  when: static_routes is defined
+  
+- name: Configure OSPF routing
+  ios_config:
+    lines:
+      - router ospf {{ ospf_process_id }}
+      - router-id {{ ospf_router_id }}
+      - network {{ item.network }} {{ item.wildcard }} area {{ item.area }}
+    parents: []
+  loop: "{{ ospf_networks }}"
+  when: enable_ospf | default(false) and ospf_networks is defined
+  
+- name: Configure OSPF interface settings
+  ios_config:
+    lines:
+      - ip ospf hello-interval {{ ospf_hello_interval }}
+      - ip ospf dead-interval {{ ospf_dead_interval }}
+    parents: interface {{ item }}
+  loop: "{{ ospf_interfaces }}"
+  when: enable_ospf | default(false) and ospf_interfaces is defined

@@ -1,0 +1,32 @@
+---
+# Meta information for BGP Configuration Role
+galaxy_info:
+  role_name: bgp_configuration
+  author: Infrastructure Orchestrator
+  description: Enterprise BGP routing protocol configuration for Cisco devices
+  company: Enterprise Network
+  license: MIT
+  min_ansible_version: "2.12"
+  
+  platforms:
+    - name: IOS
+      versions:
+        - "15.x"
+        - "16.x"
+        - "17.x"
+  
+  galaxy_tags:
+    - cisco
+    - bgp
+    - routing
+    - network
+    - enterprise
+    - protocols
+
+dependencies:
+  - role: security_hardening
+    when: apply_security_hardening | default(true)
+
+collections:
+  - cisco.ios
+  - ansible.netcommon

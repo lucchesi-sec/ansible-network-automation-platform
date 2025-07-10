@@ -1,0 +1,93 @@
+---
+# Monitoring & Observability Role - Main Tasks
+# Enterprise-scale monitoring and observability deployment
+
+- name: Include monitoring and observability variables
+  include_vars: "{{ item }}"
+  with_items:
+    - main.yml
+    - domain_entities.yml
+    - bounded_context_map.yml
+    - api_specification.yml
+    - data_pipeline_architecture.yml
+    - integration_strategy.yml
+
+- name: Validate deployment prerequisites
+  include_tasks: validate_prerequisites.yml
+  when: monitoring_enabled | bool
+
+- name: Deploy monitoring infrastructure
+  include_tasks: deploy_infrastructure.yml
+  when: monitoring_enabled | bool
+
+- name: Configure metrics collection domain
+  include_tasks: configure_metrics_collection.yml
+  when: 
+    - monitoring_enabled | bool
+    - bounded_contexts.metrics_collection.enabled | bool
+
+- name: Configure alert management domain
+  include_tasks: configure_alert_management.yml
+  when:
+    - monitoring_enabled | bool
+    - bounded_contexts.alert_management.enabled | bool
+
+- name: Configure visualization domain
+  include_tasks: configure_visualization.yml
+  when:
+    - monitoring_enabled | bool
+    - bounded_contexts.visualization.enabled | bool
+
+- name: Configure log processing domain
+  include_tasks: configure_log_processing.yml
+  when:
+    - monitoring_enabled | bool
+    - bounded_contexts.log_processing.enabled | bool
+
+- name: Deploy data pipeline components
+  include_tasks: deploy_data_pipeline.yml
+  when:
+    - monitoring_enabled | bool
+    - deployment_mode == "enterprise"
+
+- name: Integrate with existing roles
+  include_tasks: integrate_existing_roles.yml
+  when: monitoring_enabled | bool
+
+- name: Configure API endpoints
+  include_tasks: configure_api_endpoints.yml
+  when: monitoring_enabled | bool
+
+- name: Setup monitoring dashboards
+  include_tasks: setup_dashboards.yml
+  when: 
+    - monitoring_enabled | bool
+    - visualization.dashboards is defined
+
+- name: Configure alert rules
+  include_tasks: configure_alert_rules.yml
+  when:
+    - monitoring_enabled | bool
+    - alert_management.alert_rules is defined
+
+- name: Setup security and RBAC
+  include_tasks: setup_security.yml
+  when: 
+    - monitoring_enabled | bool
+    - security.rbac.enabled | bool
+
+- name: Configure backup and recovery
+  include_tasks: configure_backup_recovery.yml
+  when:
+    - monitoring_enabled | bool
+    - backup.enabled | bool
+
+- name: Validate monitoring deployment
+  include_tasks: validate_deployment.yml
+  when: monitoring_enabled | bool
+
+- name: Generate monitoring documentation
+  include_tasks: generate_documentation.yml
+  when: 
+    - monitoring_enabled | bool
+    - generate_documentation | default(true) | bool

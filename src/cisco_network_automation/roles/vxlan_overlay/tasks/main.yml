@@ -1,0 +1,31 @@
+---
+# VXLAN Overlay Network Role - Main Tasks
+# Configures VXLAN overlay network for data center fabric
+
+- name: Include VXLAN overlay variables
+  include_vars: main.yml
+
+- name: Configure NVE interfaces for VXLAN
+  include_tasks: nve_interface_config.yml
+
+- name: Configure VXLAN VNI mappings
+  include_tasks: vni_mapping_config.yml
+
+- name: Configure BGP EVPN for control plane
+  include_tasks: bgp_evpn_config.yml
+
+- name: Configure VXLAN flood and learn
+  include_tasks: flood_learn_config.yml
+
+- name: Configure VXLAN security policies
+  include_tasks: security_policies_config.yml
+
+- name: Configure VXLAN multicast groups
+  include_tasks: multicast_groups_config.yml
+
+- name: Validate VXLAN overlay deployment
+  include_tasks: validate_vxlan.yml
+
+- name: Generate VXLAN overlay documentation
+  include_tasks: generate_vxlan_doc.yml
+  when: generate_documentation | default(true) | bool

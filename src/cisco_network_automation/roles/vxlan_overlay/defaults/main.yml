@@ -1,0 +1,53 @@
+---
+# VXLAN Overlay Role Defaults
+# Default variables for VXLAN overlay network deployment
+
+# VXLAN general settings
+vxlan_enabled: true
+vxlan_loopback_id: 100
+vxlan_source_mask: 255.255.255.255
+
+# NVE interface settings
+nve_interface: nve1
+nve_host_reachability: bgp
+nve_suppress_arp: true
+nve_ingress_replication: bgp
+
+# BGP EVPN settings
+bgp_evpn_enabled: true
+bgp_evpn_advertise_all_vni: true
+bgp_evpn_advertise_default_gw: true
+
+# VXLAN anycast gateway
+vxlan_anycast_gateway_mac: 0000.1111.2222
+anycast_gateway_enabled: true
+
+# VNI defaults
+vni_range_start: 10000
+vni_range_end: 20000
+vni_auto_assignment: true
+
+# Multicast settings
+multicast_enabled: true
+multicast_base_group: 239.1.1.0
+multicast_group_increment: 1
+
+# Security settings
+vxlan_security_enabled: true
+vxlan_encryption_enabled: false
+
+# Performance settings
+vxlan_mtu: 9000
+vxlan_load_balance: true
+
+# Flood and learn settings
+flood_and_learn_enabled: false
+head_end_replication: true
+
+# Tenant settings
+multi_tenancy_enabled: true
+default_vrf: default
+
+# Validation settings
+validate_vxlan: true
+vxlan_validation_timeout: 300

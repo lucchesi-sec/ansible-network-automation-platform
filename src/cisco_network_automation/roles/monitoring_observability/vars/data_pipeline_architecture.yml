@@ -1,0 +1,569 @@
+---
+# Data Pipeline Architecture - High-Performance Telemetry Processing
+# Designed for enterprise-scale network monitoring with real-time and batch processing
+
+data_pipeline_architecture:
+  overview:
+    description: "Multi-tier data pipeline for processing network telemetry at enterprise scale"
+    design_principles:
+      - "Lambda Architecture (batch + stream processing)"
+      - "Horizontal scalability"
+      - "Fault tolerance and self-healing"
+      - "Low-latency real-time processing"
+      - "High-throughput batch processing"
+      - "Data quality assurance"
+      - "Multi-tenant isolation"
+    
+    performance_targets:
+      ingestion_rate: "1M metrics/second"
+      processing_latency: "<100ms p99"
+      query_response_time: "<5s p95"
+      data_retention: "2 years hot, 7 years cold"
+      availability: "99.9%"
+      recovery_time_objective: "15 minutes"
+      recovery_point_objective: "5 minutes"
+
+# Ingestion Layer - Data Collection and Initial Processing
+ingestion_layer:
+  snmp_collection:
+    architecture: "distributed_collectors"
+    components:
+      snmp_exporter:
+        deployment: "kubernetes_daemonset"
+        instances: 20
+        capacity: "5000 devices per instance"
+        collection_interval: "30s"
+        timeout: "10s"
+        retries: 3
+        metrics_buffer_size: "10000"
+        
+      prometheus_snmp_scraper:
+        job_configuration:
+          - job_name: "cisco-routers"
+            scrape_interval: "30s"
+            scrape_timeout: "10s"
+            metrics_path: "/snmp"
+            static_configs:
+              - targets: ["snmp-exporter:9116"]
+            params:
+              module: ["cisco_ios"]
+              target: ["{{ inventory_hostname }}"]
+            relabel_configs:
+              - source_labels: ["__address__"]
+                target_label: "__param_target"
+              - source_labels: ["__param_target"]
+                target_label: "instance"
+              - target_label: "__address__"
+                replacement: "snmp-exporter:9116"
+    
+    scaling_strategy:
+      horizontal_scaling:
+        - "Auto-scale based on device count"
+        - "Load balance across collectors"
+        - "Shard devices by geography/type"
+      performance_optimization:
+        - "Bulk OID requests"
+        - "Connection pooling"
+        - "Parallel collection threads"
+        - "Intelligent retry logic"
+
+  gnmi_streaming:
+    architecture: "event_driven_streaming"
+    components:
+      gnmi_collector:
+        implementation: "telegraf_gnmi"
+        configuration:
+          addresses: ["{{ gnmi_target_addresses }}"]
+          subscriptions:
+            - name: "interface_stats"
+              paths: ["/interfaces/interface/state"]
+              mode: "stream"
+              stream_mode: "sample"
+              sample_interval: "10s"
+            - name: "bgp_neighbors"
+              paths: ["/network-instances/network-instance/protocols/protocol/bgp"]
+              mode: "stream"
+              stream_mode: "on_change"
+            - name: "system_resources"
+              paths: ["/system/processes", "/system/memory"]
+              mode: "stream"
+              stream_mode: "sample"
+              sample_interval: "30s"
+          
+        data_transformation:
+          - "JSON to InfluxDB line protocol"
+          - "Metric name normalization"
+          - "Label standardization"
+          - "Data type conversion"
+          - "Timestamp synchronization"
+    
+    streaming_pipeline:
+      kafka_integration:
+        topics:
+          gnmi_raw:
+            partitions: 24
+            replication_factor: 3
+            retention_ms: 86400000  # 1 day
+            compression_type: "lz4"
+          gnmi_processed:
+            partitions: 12
+            replication_factor: 3
+            retention_ms: 604800000  # 7 days
+
+  syslog_collection:
+    architecture: "centralized_log_aggregation"
+    components:
+      rsyslog_concentrators:
+        count: 6
+        capacity: "100k logs/second each"
+        configuration:
+          input_modules:
+            - "imudp"  # UDP syslog
+            - "imtcp"  # TCP syslog
+            - "imrelp" # RELP (reliable logging)
+          parsing_rules:
+            - rfc3164_parser
+            - rfc5424_parser
+            - cisco_ios_parser
+            - cisco_nexus_parser
+          
+      filebeat_shippers:
+        deployment: "edge_collection"
+        configuration:
+          inputs:
+            - type: "syslog"
+              protocol: "udp"
+              host: "0.0.0.0:514"
+            - type: "filestream"
+              paths: ["/var/log/network/*.log"]
+          processors:
+            - add_host_metadata: {}
+            - add_docker_metadata: {}
+            - timestamp:
+                field: "timestamp"
+                layouts: ["RFC3339"]
+          output:
+            kafka:
+              hosts: ["kafka-cluster:9092"]
+              topic: "syslog_raw"
+              partition: "round_robin"
+
+# Stream Processing Layer - Real-time Analytics
+stream_processing:
+  kafka_streams:
+    architecture: "microservices_pattern"
+    applications:
+      telemetry_processor:
+        description: "Real-time metric processing and enrichment"
+        parallelism: 12
+        processing_logic:
+          - "Metric validation and sanitization"
+          - "Device metadata enrichment"
+          - "Label standardization"
+          - "Rate calculation (counter to rate)"
+          - "Anomaly detection (statistical)"
+          - "Threshold evaluation"
+        
+        topology:
+          source: "telemetry_raw"
+          processors:
+            - name: "validate_metrics"
+              type: "filter"
+            - name: "enrich_metadata"
+              type: "transform"
+            - name: "calculate_rates"
+              type: "transform"
+            - name: "detect_anomalies"
+              type: "branch"
+          sinks:
+            - "telemetry_processed"
+            - "anomalies_detected"
+      
+      alert_correlator:
+        description: "Real-time alert correlation and deduplication"
+        parallelism: 6
+        processing_logic:
+          - "Event correlation across devices"
+          - "Alert deduplication"
+          - "Escalation logic"
+          - "Notification routing"
+        
+        state_stores:
+          - name: "alert_state"
+            type: "key_value"
+            retention: "24h"
+          - name: "correlation_windows"
+            type: "window"
+            window_size: "5m"
+            retention: "1h"
+      
+      performance_aggregator:
+        description: "Real-time performance metric aggregation"
+        parallelism: 8
+        processing_logic:
+          - "Multi-dimensional aggregations"
+          - "Percentile calculations"
+          - "Moving averages"
+          - "Trend analysis"
+        
+        windowing:
+          tumbling_windows:
+            - size: "1m"
+              output_topic: "metrics_1m"
+            - size: "5m"
+              output_topic: "metrics_5m"
+            - size: "15m"
+              output_topic: "metrics_15m"
+
+  apache_flink:
+    architecture: "complex_event_processing"
+    job_configurations:
+      network_topology_analysis:
+        description: "Real-time network topology change detection"
+        parallelism: 4
+        checkpointing:
+          interval: "10s"
+          backend: "rocksdb"
+        processing_logic:
+          - "BGP neighbor state changes"
+          - "Link up/down events"
+          - "Routing table changes"
+          - "Network convergence analysis"
+      
+      security_event_correlation:
+        description: "Security event correlation and threat detection"
+        parallelism: 6
+        processing_logic:
+          - "Failed authentication correlation"
+          - "Unusual traffic pattern detection"
+          - "Multi-stage attack identification"
+          - "Risk scoring"
+
+# Batch Processing Layer - Historical Analytics
+batch_processing:
+  apache_spark:
+    architecture: "data_lake_analytics"
+    cluster_configuration:
+      driver:
+        cores: 4
+        memory: "8g"
+        max_result_size: "4g"
+      executors:
+        instances: 20
+        cores: 4
+        memory: "8g"
+        memory_fraction: 0.8
+    
+    jobs:
+      daily_performance_reports:
+        description: "Generate daily performance summary reports"
+        schedule: "0 6 * * *"  # 6 AM daily
+        processing_logic:
+          - "Interface utilization statistics"
+          - "Device performance metrics"
+          - "SLA compliance calculations"
+          - "Trend analysis"
+        output_formats:
+          - "parquet"
+          - "json"
+          - "csv"
+      
+      capacity_planning_analysis:
+        description: "Capacity planning and forecasting"
+        schedule: "0 2 * * 0"  # 2 AM every Sunday
+        processing_logic:
+          - "Growth trend analysis"
+          - "Capacity utilization forecasting"
+          - "Resource optimization recommendations"
+          - "Cost analysis"
+      
+      security_analytics:
+        description: "Security posture analysis and reporting"
+        schedule: "0 4 * * *"  # 4 AM daily
+        processing_logic:
+          - "Security event analysis"
+          - "Compliance reporting"
+          - "Threat intelligence correlation"
+          - "Risk assessment"
+
+# Storage Layer - Multi-tier Data Storage
+storage_layer:
+  time_series_databases:
+    prometheus:
+      architecture: "federated_prometheus"
+      configuration:
+        global:
+          scrape_interval: "15s"
+          evaluation_interval: "15s"
+          external_labels:
+            cluster: "enterprise-network"
+            region: "{{ ansible_datacenter | default('dc1') }}"
+        storage:
+          retention_time: "90d"
+          retention_size: "100GB"
+          wal_compression: true
+          block_duration: "2h"
+        recording_rules:
+          - name: "interface_utilization"
+            interval: "30s"
+            rules:
+              - record: "interface:utilization:rate5m"
+                expr: "rate(ifInOctets[5m]) * 8 / ifSpeed"
+          - name: "device_health"
+            interval: "60s"
+            rules:
+              - record: "device:cpu:avg5m"
+                expr: "avg_over_time(cpu_utilization[5m])"
+              - record: "device:memory:avg5m"
+                expr: "avg_over_time(memory_utilization[5m])"
+    
+    influxdb:
+      architecture: "clustered_influxdb"
+      configuration:
+        version: "2.7"
+        organization: "enterprise"
+        buckets:
+          - name: "network_metrics"
+            retention_period: "90d"
+            shard_group_duration: "1d"
+          - name: "performance_metrics"
+            retention_period: "365d"
+            shard_group_duration: "7d"
+          - name: "historical_metrics"
+            retention_period: "2y"
+            shard_group_duration: "30d"
+        continuous_queries:
+          - name: "downsample_1h"
+            query: |
+              SELECT mean(*) INTO network_metrics_1h
+              FROM network_metrics
+              GROUP BY time(1h), *
+          - name: "downsample_1d"
+            query: |
+              SELECT mean(*) INTO network_metrics_1d
+              FROM network_metrics_1h
+              GROUP BY time(1d), *
+
+  document_stores:
+    elasticsearch:
+      architecture: "hot_warm_cold"
+      cluster_configuration:
+        master_nodes: 3
+        data_hot_nodes: 6
+        data_warm_nodes: 4
+        data_cold_nodes: 2
+        coordinating_nodes: 2
+      
+      index_configuration:
+        templates:
+          logs_template:
+            index_patterns: ["logs-*"]
+            settings:
+              number_of_shards: 3
+              number_of_replicas: 1
+              refresh_interval: "30s"
+              index.lifecycle.name: "logs_policy"
+            mappings:
+              properties:
+                "@timestamp":
+                  type: "date"
+                level:
+                  type: "keyword"
+                message:
+                  type: "text"
+                  analyzer: "standard"
+                source:
+                  type: "keyword"
+                structured_data:
+                  type: "object"
+                  dynamic: true
+        
+        lifecycle_policies:
+          logs_policy:
+            phases:
+              hot:
+                actions:
+                  rollover:
+                    max_size: "50gb"
+                    max_age: "1d"
+              warm:
+                min_age: "7d"
+                actions:
+                  allocate:
+                    number_of_replicas: 0
+                  forcemerge:
+                    max_num_segments: 1
+              cold:
+                min_age: "30d"
+                actions:
+                  allocate:
+                    number_of_replicas: 0
+              delete:
+                min_age: "90d"
+
+  object_storage:
+    s3_compatible:
+      architecture: "tiered_storage"
+      buckets:
+        hot_data:
+          name: "enterprise-monitoring-hot"
+          storage_class: "standard"
+          lifecycle_rules:
+            - transition_to_ia: "30d"
+            - transition_to_glacier: "90d"
+        
+        cold_data:
+          name: "enterprise-monitoring-cold"
+          storage_class: "glacier"
+          lifecycle_rules:
+            - transition_to_deep_archive: "365d"
+        
+        backups:
+          name: "enterprise-monitoring-backups"
+          storage_class: "standard_ia"
+          versioning: true
+          cross_region_replication: true
+
+# Data Quality and Validation
+data_quality:
+  validation_rules:
+    metric_validation:
+      - name: "timestamp_validation"
+        rule: "timestamp within last 5 minutes"
+        action: "reject"
+      - name: "value_range_validation"
+        rule: "numeric values within expected ranges"
+        action: "flag_and_alert"
+      - name: "label_validation"
+        rule: "required labels present"
+        action: "reject"
+    
+    completeness_checks:
+      - name: "device_heartbeat"
+        rule: "all devices report within expected interval"
+        action: "alert"
+      - name: "metric_completeness"
+        rule: "expected metrics present for each device"
+        action: "alert"
+    
+    consistency_checks:
+      - name: "cross_metric_validation"
+        rule: "related metrics are consistent"
+        action: "flag_for_review"
+      - name: "temporal_consistency"
+        rule: "metric values follow expected patterns"
+        action: "anomaly_detection"
+
+# Monitoring and Observability of the Pipeline
+pipeline_monitoring:
+  metrics:
+    ingestion_metrics:
+      - "data_ingestion_rate"
+      - "ingestion_latency"
+      - "ingestion_errors"
+      - "data_loss_rate"
+    
+    processing_metrics:
+      - "processing_throughput"
+      - "processing_latency"
+      - "processing_errors"
+      - "resource_utilization"
+    
+    storage_metrics:
+      - "storage_utilization"
+      - "query_performance"
+      - "index_performance"
+      - "backup_status"
+  
+  alerting:
+    critical_alerts:
+      - "Data ingestion stopped"
+      - "Processing lag > 5 minutes"
+      - "Storage capacity > 90%"
+      - "Data loss detected"
+    
+    warning_alerts:
+      - "Processing lag > 1 minute"
+      - "Error rate > 1%"
+      - "Storage capacity > 80%"
+      - "Backup failure"
+
+# Disaster Recovery and High Availability
+disaster_recovery:
+  backup_strategy:
+    frequency:
+      configuration: "hourly"
+      data: "daily"
+      indices: "daily"
+    
+    retention:
+      daily_backups: "30 days"
+      weekly_backups: "12 weeks"
+      monthly_backups: "12 months"
+      yearly_backups: "7 years"
+  
+  replication:
+    cross_region:
+      enabled: true
+      regions: ["primary", "dr"]
+      replication_lag_threshold: "5 minutes"
+    
+    multi_az:
+      enabled: true
+      availability_zones: 3
+      synchronous_replication: true
+  
+  failover:
+    automatic_failover:
+      enabled: true
+      detection_timeout: "30s"
+      failover_timeout: "5m"
+    
+    manual_failover:
+      procedure: "documented_runbook"
+      rto: "15 minutes"
+      rpo: "5 minutes"
+
+# Performance Optimization
+performance_optimization:
+  caching:
+    query_caching:
+      enabled: true
+      cache_size: "10GB"
+      ttl: "5m"
+    
+    metadata_caching:
+      enabled: true
+      cache_size: "1GB"
+      ttl: "1h"
+  
+  compression:
+    data_compression:
+      algorithm: "lz4"
+      compression_ratio: "4:1"
+    
+    log_compression:
+      algorithm: "gzip"
+      compression_ratio: "10:1"
+  
+  indexing:
+    time_series_indexing:
+      strategy: "time_based_partitioning"
+      partition_size: "1d"
+    
+    log_indexing:
+      strategy: "hot_warm_cold"
+      index_rotation: "daily"
+  
+  resource_allocation:
+    cpu_allocation:
+      ingestion: "40%"
+      processing: "35%"
+      storage: "15%"
+      queries: "10%"
+    
+    memory_allocation:
+      ingestion_buffers: "8GB"
+      processing_cache: "16GB"
+      storage_cache: "32GB"
+      query_cache: "8GB"

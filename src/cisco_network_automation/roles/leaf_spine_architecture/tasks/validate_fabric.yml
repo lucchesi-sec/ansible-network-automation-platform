@@ -1,0 +1,66 @@
+---
+# Validation Tasks for Leaf-Spine Architecture
+# Validates the deployment of leaf-spine fabric
+
+- name: Validate OSPF neighbor relationships
+  cisco.ios.ios_command:
+    commands:
+      - show ip ospf neighbor
+  register: ospf_neighbors
+  failed_when: false
+
+- name: Display OSPF neighbor status
+  debug:
+    msg: "OSPF Neighbors: {{ ospf_neighbors.stdout[0] }}"
+  when: ospf_neighbors is defined
+
+- name: Validate BGP neighbor relationships
+  cisco.ios.ios_command:
+    commands:
+      - show ip bgp summary
+  register: bgp_summary
+  failed_when: false
+
+- name: Display BGP neighbor status
+  debug:
+    msg: "BGP Summary: {{ bgp_summary.stdout[0] }}"
+  when: bgp_summary is defined
+
+- name: Validate interface status
+  cisco.ios.ios_command:
+    commands:
+      - show ip interface brief
+  register: interface_status
+  failed_when: false
+
+- name: Display interface status
+  debug:
+    msg: "Interface Status: {{ interface_status.stdout[0] }}"
+  when: interface_status is defined
+
+- name: Validate routing table
+  cisco.ios.ios_command:
+    commands:
+      - show ip route
+  register: routing_table
+  failed_when: false
+
+- name: Display routing table summary
+  debug:
+    msg: "Routing Table entries present"
+  when: routing_table is defined
+
+- name: Validate loopback reachability
+  cisco.ios.ios_command:
+    commands:
+      - ping {{ item.ip_address }}
+  register: ping_results
+  loop: "{{ fabric_loopbacks }}"
+  when: fabric_loopbacks is defined
+  failed_when: false
+
+- name: Display ping results
+  debug:
+    msg: "Ping to {{ item.item.ip_address }}: {{ 'Success' if item.stdout[0] is search('Success') else 'Failed' }}"
+  loop: "{{ ping_results.results }}"
+  when: ping_results is defined

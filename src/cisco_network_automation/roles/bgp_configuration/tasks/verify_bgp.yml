@@ -1,0 +1,77 @@
+---
+# BGP Verification Tasks
+# Validates BGP configuration and operational status
+
+- name: Check BGP summary
+  ios_command:
+    commands:
+      - show ip bgp summary
+  register: bgp_summary
+  failed_when: false
+
+- name: Check BGP neighbor status
+  ios_command:
+    commands:
+      - show ip bgp neighbors
+  register: bgp_neighbors_status
+  failed_when: false
+
+- name: Check BGP routing table
+  ios_command:
+    commands:
+      - show ip bgp
+  register: bgp_routes
+  failed_when: false
+
+- name: Verify BGP communities
+  ios_command:
+    commands:
+      - show ip bgp community
+  register: bgp_communities_status
+  failed_when: false
+
+- name: Check route reflector status
+  ios_command:
+    commands:
+      - show ip bgp all summary
+  register: bgp_rr_status
+  failed_when: false
+  when: is_route_reflector | default(false)
+
+- name: Display BGP verification results
+  debug:
+    msg:
+      - "=== BGP Verification Results for {{ inventory_hostname }} ==="
+      - "BGP Summary: {{ 'Available' if bgp_summary.stdout[0] else 'Not Available' }}"
+      - "BGP Neighbors: {{ 'Configured' if bgp_neighbors_status.stdout[0] else 'Not Configured' }}"
+      - "BGP Routes: {{ 'Present' if bgp_routes.stdout[0] else 'No Routes' }}"
+      - "Route Reflector: {{ 'Active' if (is_route_reflector and bgp_rr_status.stdout[0]) else 'Not Active' }}"
+
+- name: Generate BGP status report
+  set_fact:
+    bgp_status_report:
+      hostname: "{{ inventory_hostname }}"
+      bgp_asn: "{{ bgp_asn }}"
+      router_id: "{{ router_id }}"
+      is_route_reflector: "{{ is_route_reflector | default(false) }}"
+      bgp_summary_available: "{{ bgp_summary.stdout[0] | length > 0 }}"
+      neighbor_count: "{{ (bgp_neighbors | default([])) | length }}"
+      verification_timestamp: "{{ ansible_date_time.iso8601 }}"
+
+- name: Save BGP verification report
+  copy:
+    content: |
+      BGP Configuration Verification Report
+      =====================================
+      Hostname: {{ bgp_status_report.hostname }}
+      BGP ASN: {{ bgp_status_report.bgp_asn }}
+      Router ID: {{ bgp_status_report.router_id }}
+      Route Reflector: {{ bgp_status_report.is_route_reflector }}
+      Neighbor Count: {{ bgp_status_report.neighbor_count }}
+      Verification Time: {{ bgp_status_report.verification_timestamp }}
+      
+      BGP Summary Available: {{ bgp_status_report.bgp_summary_available }}
+      
+      {{ bgp_summary.stdout[0] if bgp_summary.stdout[0] else 'No BGP summary available' }}
+    dest: "{{ playbook_dir }}/reports/{{ inventory_hostname }}_bgp_verification.txt"
+  delegate_to: localhost

@@ -1,0 +1,57 @@
+---
+# Ansible Lint Configuration - Enterprise Network Deployment
+profile: production
+use_default_rules: true
+verbosity: 1
+strict: true
+progressive: true
+offline: false
+
+skip_list:
+  - yaml[line-length]
+  - name[casing]
+  - var-naming[no-role-prefix]
+
+exclude_paths:
+  - .cache/
+  - .github/
+  - .git/
+  - __pycache__/
+  - logs/
+  - backups/
+  - tmp/
+  - .ansible/
+  - venv/
+  - .venv/
+  - collections/
+  - vault/
+  - "*.retry"
+  - vault-password-script.sh
+
+# Rules are configured through profile: production
+
+mock_modules:
+  - cisco.ios.ios_command
+  - cisco.ios.ios_config
+  - cisco.ios.ios_facts
+  - cisco.ios.ios_interface
+  - cisco.ios.ios_static_route
+  - cisco.ios.ios_vlan
+  - cisco.ios.ios_vrf
+  - cisco.ios.ios_bgp
+  - cisco.ios.ios_ospf
+  - cisco.ios.ios_acl
+  - cisco.ios.ios_banner
+  - cisco.ios.ios_user
+  - cisco.ios.ios_logging
+  - cisco.ios.ios_ntp
+  - cisco.ios.ios_snmp_server
+  - cisco.ios.ios_system
+  - cisco.nxos.nxos_command
+  - cisco.nxos.nxos_config
+  - cisco.nxos.nxos_facts
+  - cisco.nxos.nxos_interface
+  - cisco.nxos.nxos_vlan
+  - cisco.nxos.nxos_vrf
+  - cisco.nxos.nxos_bgp
+  - cisco.nxos.nxos_ospf

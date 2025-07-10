@@ -1,0 +1,53 @@
+---
+# Router Configuration Verification Tasks
+# Verifies router configuration and connectivity
+
+- name: Verify interface status
+  ios_command:
+    commands:
+      - show ip interface brief
+  register: interface_status
+  
+- name: Display interface information
+  debug:
+    msg: "{{ interface_status.stdout[0] }}"
+    
+- name: Verify routing table
+  ios_command:
+    commands:
+      - show ip route
+  register: routing_table
+  
+- name: Display routing information
+  debug:
+    msg: "Default route present: {{ 'Gateway of last resort' in routing_table.stdout[0] }}"
+    
+- name: Test internet connectivity
+  ios_ping:
+    dest: "{{ internet_test_host }}"
+    count: 5
+  register: internet_ping
+  when: internet_test_host is defined
+  
+- name: Display internet connectivity
+  debug:
+    msg: "Internet connectivity: {{ 'Success' if internet_ping.commands[0].success_rate == 100 else 'Failed' }}"
+  when: internet_test_host is defined and internet_ping is defined
+  
+- name: Verify NAT translations
+  ios_command:
+    commands:
+      - show ip nat translations
+  register: nat_translations
+  
+- name: Verify DHCP bindings
+  ios_command:
+    commands:
+      - show ip dhcp binding
+  register: dhcp_bindings
+  when: enable_dhcp | default(false)
+  
+- name: Display DHCP status
+  debug:
+    msg: "DHCP bindings: {{ dhcp_bindings.stdout[0] | regex_findall('\\d+\\.\\d+\\.\\d+\\.\\d+') | length }}"
+  when: enable_dhcp | default(false) and dhcp_bindings is defined

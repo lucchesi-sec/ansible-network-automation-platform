@@ -1,0 +1,47 @@
+---
+# User Authentication Security Tasks
+# Configures secure user authentication and authorization
+
+- name: Configure enable secret
+  ios_config:
+    lines:
+      - enable secret {{ vault_enable_secret }}
+    no_log: true
+  when: vault_enable_secret is defined
+  
+- name: Configure local users
+  ios_config:
+    lines:
+      - username {{ item.username }} privilege {{ item.privilege }} secret {{ item.password }}
+    no_log: true
+  loop: "{{ local_users }}"
+  when: local_users is defined
+  
+- name: Configure AAA authentication
+  ios_config:
+    lines:
+      - aaa new-model
+      - aaa authentication login default local
+      - aaa authentication enable default enable
+      - aaa authorization exec default local
+      - aaa accounting exec default start-stop local
+      - aaa accounting commands 15 default start-stop local
+      
+- name: Configure privilege levels
+  ios_config:
+    lines:
+      - privilege exec level {{ item.level }} {{ item.command }}
+  loop: "{{ custom_privileges }}"
+  when: custom_privileges is defined
+  
+- name: Configure login authentication
+  ios_config:
+    lines:
+      - login authentication {{ auth_method | default('default') }}
+    parents: line vty 0 15
+    
+- name: Configure console authentication
+  ios_config:
+    lines:
+      - login authentication {{ console_auth_method | default('default') }}
+    parents: line console 0

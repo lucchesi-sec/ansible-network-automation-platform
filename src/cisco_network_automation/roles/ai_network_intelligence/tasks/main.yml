@@ -1,0 +1,166 @@
+---
+# AI Network Intelligence - Consolidated Role
+# Combines AI optimization and automation controller functionality
+# Replaces: cisco_ai_optimization + cisco_automation_controller
+
+- name: Display AI Network Intelligence banner
+  debug:
+    msg: |
+      Configuring AI Network Intelligence on {{ inventory_hostname }}
+      AI Optimization: {{ ai_optimization_enabled | default(true) }}
+      Automation Controller: {{ automation_controller_enabled | default(true) }}
+      ML Models: {{ machine_learning_models | length }}
+
+# AI Optimization Engine Configuration
+- name: Configure AI optimization engine
+  cisco.ios.ios_config:
+    lines:
+      - ai-optimization enable
+      - optimization-mode {{ ai_optimization_mode }}
+      - optimization-targets bandwidth latency throughput
+      - learning-rate adaptive
+      - utilization-threshold {{ bandwidth_utilization_threshold }}%
+    parents: configure terminal
+  when: ai_optimization_enabled | default(true)
+  tags: [ai_optimization]
+
+- name: Configure bandwidth and performance optimization
+  cisco.ios.ios_config:
+    lines:
+      - ai-optimization bandwidth enable
+      - dynamic-allocation enabled
+      - congestion-prediction enabled
+      - load-balancing intelligent
+      - ai-optimization latency enable
+      - path-selection-optimization enabled
+      - queue-management intelligent
+      - ai-optimization performance enable
+      - buffer-tuning automatic
+      - protocol-optimization enabled
+      - resource-allocation dynamic
+    parents: configure terminal
+  when: ai_optimization_enabled | default(true)
+  tags: [ai_optimization, bandwidth]
+
+- name: Configure QoS and security optimization
+  cisco.ios.ios_config:
+    lines:
+      - ai-optimization qos enable
+      - class-map-adjustment automatic
+      - policy-map-optimization enabled
+      - traffic-shaping intelligent
+      - ai-optimization security enable
+      - threat-response automatic
+      - policy-enforcement intelligent
+      - anomaly-mitigation enabled
+    parents: configure terminal
+  when: ai_optimization_enabled | default(true)
+  tags: [ai_optimization, qos, security]
+
+# Automation Controller Configuration
+- name: Deploy automation controller
+  cisco.ios.ios_config:
+    lines:
+      - automation controller enable
+      - automation controller ip {{ automation_controller_ip }}
+      - automation controller port {{ automation_controller_port }}
+      - automation controller username {{ automation_controller_username }}
+      - automation controller password {{ automation_controller_password }}
+      - automation controller timeout {{ automation_controller_timeout }}
+    parents: configure terminal
+  when: automation_controller_enabled | default(true)
+  notify: restart automation services
+  tags: [automation_controller]
+
+- name: Configure automation policies
+  cisco.ios.ios_config:
+    lines:
+      - automation policy {{ item.name }}
+      - description {{ item.description }}
+      - trigger {{ item.trigger }}
+      - action {{ item.action }}
+      - severity {{ item.severity }}
+      - notification {{ item.notification }}
+    parents: configure terminal
+  loop: "{{ automation_policies | default([]) }}"
+  when: 
+    - automation_controller_enabled | default(true)
+    - automation_policies is defined
+  notify: reload automation policies
+  tags: [automation_controller, policies]
+
+- name: Configure automation API and telemetry
+  cisco.ios.ios_config:
+    lines:
+      - automation api enable
+      - automation api authentication {{ automation_api_auth }}
+      - automation api ssl certificate {{ automation_api_ssl_cert }}
+      - automation api ssl key {{ automation_api_ssl_key }}
+      - automation api access-list {{ automation_api_acl }}
+      - automation telemetry enable
+      - automation telemetry collector {{ automation_telemetry_collector }}
+      - automation telemetry interval {{ automation_telemetry_interval }}
+      - automation telemetry format {{ automation_telemetry_format }}
+    parents: configure terminal
+  when: automation_controller_enabled | default(true)
+  tags: [automation_controller, api, telemetry]
+
+- name: Deploy automation scripts
+  cisco.ios.ios_config:
+    lines:
+      - automation script {{ item.name }}
+      - language {{ item.language }}
+      - source {{ item.source }}
+      - parameters {{ item.parameters }}
+      - execution-mode {{ item.execution_mode }}
+    parents: configure terminal
+  loop: "{{ automation_scripts | default([]) }}"
+  when: 
+    - automation_controller_enabled | default(true)
+    - automation_scripts is defined
+  tags: [automation_controller, scripts]
+
+# Integrated Monitoring and Logging
+- name: Configure integrated monitoring
+  cisco.ios.ios_config:
+    lines:
+      - ai-optimization monitoring enable
+      - performance-tracking enabled
+      - optimization-metrics collection
+      - improvement-analysis enabled
+      - logging automation enable
+      - logging automation level {{ automation_log_level | default('informational') }}
+      - logging automation facility {{ automation_log_facility | default('local6') }}
+      - logging automation buffer {{ automation_log_buffer_size | default('4096') }}
+    parents: configure terminal
+  tags: [monitoring, logging]
+
+# Validation and Verification
+- name: Verify AI Network Intelligence configuration
+  cisco.ios.ios_command:
+    commands:
+      - show ai-optimization status
+      - show optimization-metrics
+      - show ai-performance
+      - show automation controller status
+      - show automation policies
+      - show automation events
+  register: ai_intelligence_status
+  failed_when: false
+  tags: [validation]
+
+- name: Display AI Network Intelligence status
+  debug:
+    var: ai_intelligence_status.stdout_lines
+  when: ai_intelligence_status is defined
+  tags: [validation]
+
+- name: Validate AI optimization functionality
+  assert:
+    that:
+      - ai_intelligence_status is defined
+      - ai_intelligence_status.failed == false
+    fail_msg: "AI Network Intelligence configuration failed validation"
+    success_msg: "AI Network Intelligence configured successfully"
+  when: ai_intelligence_status is defined
+  tags: [validation]

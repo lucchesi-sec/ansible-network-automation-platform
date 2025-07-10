@@ -1,0 +1,95 @@
+---
+# BGP Configuration Default Variables
+# Enterprise BGP routing configuration
+
+# BGP Basic Configuration
+bgp_asn: "{{ vault_bgp_asn | default('65001') }}"
+router_id: "{{ vault_router_id | default(ansible_host) }}"
+bgp_log_neighbor_changes: true
+
+# Route Reflector Configuration
+is_route_reflector: false
+route_reflector_cluster_id: "{{ vault_rr_cluster_id | default('1.1.1.1') }}"
+
+# BGP Communities
+bgp_communities:
+  - name: "INTERNAL"
+    value: "65001:100"
+  - name: "EXTERNAL"
+    value: "65001:200"
+  - name: "CUSTOMER"
+    value: "65001:300"
+  - name: "PROVIDER"
+    value: "65001:400"
+
+# BGP Network Advertisements
+bgp_networks: []
+
+# BGP Redistribute Settings
+bgp_redistribute:
+  - protocol: "connected"
+    route_map: "REDISTRIBUTE_CONNECTED"
+  - protocol: "static"
+    route_map: "REDISTRIBUTE_STATIC"
+
+# BGP Authentication
+bgp_authentication_key: "{{ vault_bgp_auth_key | default('') }}"
+
+# BGP Timers
+bgp_keepalive: 60
+bgp_holdtime: 180
+bgp_connect_retry: 120
+
+# BGP Route Dampening
+bgp_route_dampening:
+  enabled: true
+  half_life: 15
+  suppress_limit: 2000
+  reuse_limit: 750
+  max_suppress_time: 60
+
+# BGP Graceful Restart
+bgp_graceful_restart:
+  enabled: true
+  restart_time: 120
+  stalepath_time: 360
+
+# BGP Local Preference (higher is preferred)
+bgp_local_preference: 100
+
+# BGP MED (lower is preferred)
+bgp_med: 0
+
+# BGP Maximum Paths
+bgp_maximum_paths:
+  ibgp: 4
+  ebgp: 4
+
+# BGP Synchronization (disabled by default in modern IOS)
+bgp_synchronization: false
+
+# BGP Auto Summary (disabled by default)
+bgp_auto_summary: false
+
+# BGP Enhanced Error Handling
+bgp_enhanced_error: true
+
+# BGP BFD Support
+bgp_bfd_support: false
+
+# Default BGP neighbor configuration templates
+default_ibgp_neighbor_config:
+  remote_as: "{{ bgp_asn }}"
+  next_hop_self: true
+  send_community: "both"
+  password: "{{ bgp_authentication_key }}"
+
+default_ebgp_neighbor_config:
+  send_community: "standard"
+  password: "{{ bgp_authentication_key }}"
+
+# BGP Security Settings
+bgp_security:
+  max_prefix_warning_threshold: 85
+  max_prefix_warning_only: true
+  ttl_security_hops: 255

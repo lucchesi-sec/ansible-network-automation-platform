@@ -1,0 +1,63 @@
+---
+# Traffic Policing Tasks
+# Configures traffic policing policies
+
+- name: Configure policing class maps
+  cisco.ios.ios_config:
+    lines:
+      - class-map match-any {{ item.class_name }}
+      - match {{ item.match_criteria }}
+    match: line
+  loop: "{{ policing_class_maps }}"
+  when: policing_class_maps is defined
+
+- name: Configure single-rate two-color policing
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - police {{ item.rate }} {{ item.burst }} conform-action {{ item.conform_action }} exceed-action {{ item.exceed_action }}
+    match: line
+  loop: "{{ single_rate_policers }}"
+  when: single_rate_policers is defined
+
+- name: Configure dual-rate three-color policing
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - police cir {{ item.cir }} bc {{ item.bc }} pir {{ item.pir }} be {{ item.be }}
+      - conform-action {{ item.conform_action }}
+      - exceed-action {{ item.exceed_action }}
+      - violate-action {{ item.violate_action }}
+    match: line
+  loop: "{{ dual_rate_policers }}"
+  when: dual_rate_policers is defined
+
+- name: Configure aggregate policing
+  cisco.ios.ios_config:
+    lines:
+      - mls rate-limit all {{ item.packet_type }} {{ item.rate }} {{ item.burst }}
+    match: line
+  loop: "{{ aggregate_policers }}"
+  when: aggregate_policers is defined
+
+- name: Configure per-interface policing
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - service-policy input {{ item.policy_name }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ policing_interface_bindings }}"
+  when: policing_interface_bindings is defined
+
+- name: Configure DSCP policing
+  cisco.ios.ios_config:
+    lines:
+      - policy-map {{ item.policy_name }}
+      - class {{ item.class_name }}
+      - police {{ item.rate }} conform-action set-dscp-transmit {{ item.conform_dscp }} exceed-action set-dscp-transmit {{ item.exceed_dscp }}
+    match: line
+  loop: "{{ dscp_policers }}"
+  when: dscp_policers is defined

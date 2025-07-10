@@ -1,0 +1,65 @@
+---
+# OSPF Underlay Configuration Tasks
+# Configures OSPF for underlay routing in leaf-spine fabric
+
+- name: Configure OSPF routing process
+  cisco.ios.ios_config:
+    lines:
+      - router ospf {{ ospf_process_id }}
+      - router-id {{ ansible_host }}
+      - log-adjacency-changes
+      - area {{ ospf_area }} authentication message-digest
+      - passive-interface default
+      - no passive-interface {{ item }}
+    match: line
+  loop: "{{ ospf_active_interfaces }}"
+  when: ospf_active_interfaces is defined
+
+- name: Configure OSPF area settings
+  cisco.ios.ios_config:
+    lines:
+      - router ospf {{ ospf_process_id }}
+      - area {{ ospf_area }} range {{ item.range }} {{ item.mask }}
+    match: line
+  loop: "{{ ospf_area_ranges }}"
+  when: ospf_area_ranges is defined
+
+- name: Configure OSPF network statements
+  cisco.ios.ios_config:
+    lines:
+      - router ospf {{ ospf_process_id }}
+      - network {{ item.network }} {{ item.wildcard }} area {{ ospf_area }}
+    match: line
+  loop: "{{ ospf_networks }}"
+  when: ospf_networks is defined
+
+- name: Configure OSPF interface timers
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - ip ospf hello-interval {{ ospf_hello_interval }}
+      - ip ospf dead-interval {{ ospf_dead_interval }}
+      - ip ospf network {{ ospf_network_type }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ ospf_interface_timers }}"
+  when: ospf_interface_timers is defined
+
+- name: Configure OSPF interface authentication
+  cisco.ios.ios_config:
+    lines:
+      - interface {{ item.interface }}
+      - ip ospf message-digest-key 1 md5 {{ item.md5_key }}
+    parents: interface {{ item.interface }}
+    match: line
+  loop: "{{ ospf_interface_auth }}"
+  when: ospf_interface_auth is defined
+
+- name: Configure OSPF redistribution
+  cisco.ios.ios_config:
+    lines:
+      - router ospf {{ ospf_process_id }}
+      - redistribute {{ item.protocol }} {{ item.metric_type }} metric {{ item.metric }}
+    match: line
+  loop: "{{ ospf_redistribution }}"
+  when: ospf_redistribution is defined

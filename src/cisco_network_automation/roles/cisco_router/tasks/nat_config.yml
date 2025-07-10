@@ -1,0 +1,42 @@
+---
+# NAT Configuration Tasks
+# Configures Network Address Translation for internet access
+
+- name: Configure NAT inside source
+  ios_config:
+    lines:
+      - ip nat inside source list {{ nat_acl_number }} interface {{ wan_interface }} overload
+  when: nat_acl_number is defined
+  
+- name: Configure NAT access list
+  ios_config:
+    lines:
+      - access-list {{ nat_acl_number }} permit {{ item.network }} {{ item.wildcard }}
+  loop: "{{ nat_networks }}"
+  when: nat_acl_number is defined and nat_networks is defined
+  
+- name: Configure NAT pool
+  ios_config:
+    lines:
+      - ip nat pool {{ nat_pool_name }} {{ nat_pool_start }} {{ nat_pool_end }} netmask {{ nat_pool_netmask }}
+  when: nat_pool_name is defined and nat_pool_start is defined
+  
+- name: Configure NAT with pool
+  ios_config:
+    lines:
+      - ip nat inside source list {{ nat_acl_number }} pool {{ nat_pool_name }} overload
+  when: nat_pool_name is defined and nat_acl_number is defined
+  
+- name: Configure static NAT entries
+  ios_config:
+    lines:
+      - ip nat inside source static {{ item.inside_ip }} {{ item.outside_ip }}
+  loop: "{{ static_nat_entries }}"
+  when: static_nat_entries is defined
+  
+- name: Configure port forwarding
+  ios_config:
+    lines:
+      - ip nat inside source static {{ item.protocol }} {{ item.inside_ip }} {{ item.inside_port }} {{ item.outside_ip }} {{ item.outside_port }}
+  loop: "{{ port_forwarding }}"
+  when: port_forwarding is defined

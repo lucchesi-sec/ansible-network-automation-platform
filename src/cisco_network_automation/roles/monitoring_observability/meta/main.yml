@@ -1,0 +1,43 @@
+---
+galaxy_info:
+  author: Network Automation Team
+  description: Enterprise Monitoring and Observability Architecture
+  company: Enterprise Network Operations
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+    - name: RedHat
+      versions:
+        - 8
+        - 9
+    - name: CentOS
+      versions:
+        - 8
+    - name: Rocky
+      versions:
+        - 8
+        - 9
+
+  galaxy_tags:
+    - monitoring
+    - observability
+    - prometheus
+    - grafana
+    - elk
+    - metrics
+    - alerting
+    - telemetry
+    - network
+    - zero-trust
+
+dependencies:
+  - role: performance_optimization
+    when: performance_monitoring_enabled | default(true)
+  - role: security_hardening
+    when: security_audit_logging_enabled | default(true)
+  - role: ai_network_intelligence
+    when: ai_predictive_monitoring_enabled | default(false)

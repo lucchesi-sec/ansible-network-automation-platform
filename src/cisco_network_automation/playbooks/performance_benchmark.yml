@@ -1,0 +1,77 @@
+---
+- name: "Performance Benchmark - Enterprise Network"
+  hosts: localhost
+  gather_facts: true
+  vars:
+    benchmark_timestamp: "{{ ansible_date_time.epoch }}"
+    benchmark_report_dir: "{{ playbook_dir }}/../logs/benchmark_{{ benchmark_timestamp }}"
+    
+  tasks:
+    - name: Create benchmark report directory
+      file:
+        path: "{{ benchmark_report_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Initialize benchmark report
+      copy:
+        content: |
+          PERFORMANCE BENCHMARK VALIDATION REPORT
+          Benchmark Date: {{ ansible_date_time.iso8601 }}
+          Benchmark ID: {{ benchmark_timestamp }}
+        dest: "{{ benchmark_report_dir }}/performance_benchmark_report.txt"
+        mode: '0644'
+
+    - name: Record start time
+      set_fact:
+        deployment_start: "{{ ansible_date_time.epoch | int }}"
+
+    - name: Syntax validation performance test
+      shell: |
+        start_time=$(date +%s)
+        cd {{ playbook_dir }}/..
+        ansible-playbook --syntax-check playbooks/*.yml
+        end_time=$(date +%s)
+        echo "Syntax validation: $((end_time - start_time)) seconds"
+      register: syntax_validation_time
+
+    - name: Inventory parsing performance test
+      shell: |
+        start_time=$(date +%s)
+        cd {{ playbook_dir }}/..
+        ansible-inventory --list -i inventory/production.yml > /dev/null
+        end_time=$(date +%s)
+        echo "Inventory parsing: $((end_time - start_time)) seconds"
+      register: inventory_parsing_time
+
+    - name: Role validation performance test
+      shell: |
+        start_time=$(date +%s)
+        cd {{ playbook_dir }}/..
+        find roles -name "main.yml" | wc -l
+        end_time=$(date +%s)
+        echo "Role validation: $((end_time - start_time)) seconds"
+      register: role_validation_time
+
+    - name: Calculate total benchmark time
+      set_fact:
+        total_benchmark_time: "{{ (ansible_date_time.epoch | int) - (deployment_start | int) }}"
+
+    - name: Generate benchmark summary
+      copy:
+        content: |
+          PERFORMANCE BENCHMARK SUMMARY
+          {{ syntax_validation_time.stdout }}
+          {{ inventory_parsing_time.stdout }}
+          {{ role_validation_time.stdout }}
+          Total: {{ total_benchmark_time }} seconds
+          Status: {{ 'PASS' if (total_benchmark_time | int) < 3600 else 'REVIEW' }}
+        dest: "{{ benchmark_report_dir }}/performance_summary.txt"
+
+    - name: Display benchmark results
+      debug:
+        msg: |
+          Performance benchmark completed!
+          Total Time: {{ total_benchmark_time }} seconds
+          Status: {{ 'PASS' if (total_benchmark_time | int) < 3600 else 'REVIEW' }}
+          Reports: {{ benchmark_report_dir }}

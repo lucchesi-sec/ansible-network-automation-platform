@@ -1,0 +1,247 @@
+---
+# Core Routers Configuration Variables
+# Enterprise core routing infrastructure with BGP and OSPF
+
+# Global Core Router Settings
+core_router_type: "enterprise_core"
+management_network: "10.0.0.0/16"
+core_vrf: "CORE"
+ospf_process_id: 1
+bgp_process_id: 65001
+
+# OSPF Configuration
+ospf_config:
+  process_id: "{{ ospf_process_id }}"
+  router_id: "{{ router_id }}"
+  area_config:
+    - area_id: 0
+      area_type: backbone
+      authentication: message-digest
+      networks:
+        - network: "10.0.0.0"
+          wildcard: "0.0.255.255"
+          area: 0
+    - area_id: 1
+      area_type: standard
+      authentication: message-digest
+      networks:
+        - network: "10.1.0.0"
+          wildcard: "0.0.255.255"
+          area: 1
+    - area_id: 2
+      area_type: standard
+      authentication: message-digest
+      networks:
+        - network: "10.2.0.0"
+          wildcard: "0.0.255.255"
+          area: 2
+  timers:
+    hello: 10
+    dead: 40
+    retransmit: 5
+    transmit_delay: 1
+  authentication:
+    key_id: 1
+    key: "{{ vault_ospf_auth_key }}"
+    algorithm: md5
+
+# BGP Configuration
+bgp_config:
+  asn: "{{ bgp_asn }}"
+  router_id: "{{ router_id }}"
+  log_neighbor_changes: yes
+  synchronization: no
+  auto_summary: no
+  bestpath:
+    as_path_multipath_relax: yes
+    compare_routerid: yes
+  timers:
+    keepalive: 60
+    holdtime: 180
+  neighbors:
+    - ip: "10.0.1.10"
+      remote_as: 65001
+      update_source: "Loopback0"
+      next_hop_self: yes
+      route_reflector_client: yes
+      description: "Core Router 1"
+    - ip: "10.0.1.11"
+      remote_as: 65001
+      update_source: "Loopback0"
+      next_hop_self: yes
+      route_reflector_client: yes
+      description: "Core Router 2"
+    - ip: "10.0.1.12"
+      remote_as: 65001
+      update_source: "Loopback0"
+      next_hop_self: yes
+      route_reflector_client: yes
+      description: "Core Router 3"
+  address_families:
+    - afi: ipv4
+      safi: unicast
+      networks:
+        - network: "10.0.0.0"
+          mask: "255.255.0.0"
+        - network: "192.168.0.0"
+          mask: "255.255.0.0"
+      redistribute:
+        - protocol: ospf
+          metric: 100
+          route_map: "OSPF-TO-BGP"
+        - protocol: connected
+          route_map: "CONNECTED-TO-BGP"
+
+# Route Maps
+route_maps:
+  - name: "OSPF-TO-BGP"
+    action: permit
+    sequence: 10
+    match:
+      - "ip address prefix-list OSPF-NETWORKS"
+    set:
+      - "metric 100"
+      - "local-preference 200"
+  - name: "CONNECTED-TO-BGP"
+    action: permit
+    sequence: 10
+    match:
+      - "ip address prefix-list CONNECTED-NETWORKS"
+    set:
+      - "metric 50"
+      - "local-preference 300"
+
+# Prefix Lists
+prefix_lists:
+  - name: "OSPF-NETWORKS"
+    entries:
+      - seq: 5
+        action: permit
+        network: "10.0.0.0/8"
+        le: 24
+      - seq: 10
+        action: permit
+        network: "172.16.0.0/12"
+        le: 24
+  - name: "CONNECTED-NETWORKS"
+    entries:
+      - seq: 5
+        action: permit
+        network: "10.0.0.0/16"
+      - seq: 10
+        action: permit
+        network: "192.168.0.0/16"
+
+# Interface Configuration
+interfaces:
+  loopback:
+    - id: 0
+      ip: "{{ router_id }}"
+      mask: "255.255.255.255"
+      description: "Router ID and BGP Update Source"
+  ethernet:
+    - id: "0/0"
+      description: "Core Link to Core Router 1"
+      ip: "10.0.1.{{ ansible_host.split('.')[3] }}"
+      mask: "255.255.255.252"
+      ospf_area: 0
+      ospf_cost: 1
+      ospf_priority: 100
+    - id: "0/1"
+      description: "Core Link to Core Router 2"
+      ip: "10.0.2.{{ ansible_host.split('.')[3] }}"
+      mask: "255.255.255.252"
+      ospf_area: 0
+      ospf_cost: 1
+      ospf_priority: 100
+
+# Security Configuration
+security:
+  enable_secret: "{{ vault_cisco_enable_password }}"
+  local_users:
+    - username: "{{ vault_cisco_username }}"
+      password: "{{ vault_cisco_password }}"
+      privilege: 15
+      secret: "{{ vault_cisco_user_secret }}"
+  aaa:
+    new_model: yes
+    authentication:
+      login: "default group tacacs+ local"
+      enable: "default group tacacs+ enable"
+    authorization:
+      exec: "default group tacacs+ local"
+      commands: "15 default group tacacs+ local"
+  tacacs:
+    server: "{{ vault_tacacs_server }}"
+    key: "{{ vault_tacacs_key }}"
+    timeout: 5
+    retransmit: 3
+
+# NTP Configuration
+ntp:
+  servers:
+    - ip: "{{ vault_ntp_server_primary }}"
+      version: 4
+      prefer: yes
+    - ip: "{{ vault_ntp_server_secondary }}"
+      version: 4
+  timezone: "PST -8"
+  summer_time: "PDT recurring"
+
+# SNMP Configuration
+snmp:
+  communities:
+    - name: "{{ vault_snmp_ro_community }}"
+      permission: ro
+      acl: "SNMP-RO-ACL"
+    - name: "{{ vault_snmp_rw_community }}"
+      permission: rw
+      acl: "SNMP-RW-ACL"
+  contact: "Network Operations <netops@company.com>"
+  location: "Core Data Center"
+  trap_source: "Loopback0"
+  traps:
+    - "snmp authentication linkdown linkup"
+    - "ospf state-change"
+    - "bgp"
+
+# Logging Configuration
+logging:
+  buffered: 16384
+  console: "notifications"
+  monitor: "notifications"
+  trap: "informational"
+  facility: "local7"
+  source_interface: "Loopback0"
+  hosts:
+    - ip: "{{ vault_syslog_server }}"
+      facility: "local7"
+      level: "informational"
+
+# Quality of Service
+qos:
+  policy_maps:
+    - name: "CORE-QOS-OUT"
+      class_maps:
+        - name: "VOICE"
+          priority: 768
+          police: "768k conform-action transmit exceed-action drop"
+        - name: "VIDEO"
+          bandwidth: "percent 20"
+          random_detect: yes
+        - name: "CRITICAL-DATA"
+          bandwidth: "percent 30"
+          random_detect: yes
+        - name: "BEST-EFFORT"
+          bandwidth: "percent 25"
+          random_detect: yes
+  class_maps:
+    - name: "VOICE"
+      match: "dscp ef"
+    - name: "VIDEO"
+      match: "dscp af41 af42 af43"
+    - name: "CRITICAL-DATA"
+      match: "dscp af31 af32 af33"
+    - name: "BEST-EFFORT"
+      match: "dscp default"
+EOF < /dev/null
