@@ -1,5 +1,12 @@
 # Ansible Network Automation Platform
 
+[![Ansible](https://img.shields.io/badge/Ansible-2.12+-red?style=for-the-badge&logo=ansible)](https://www.ansible.com/)
+[![Python](https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge&logo=python)](https://www.python.org/)
+[![Cisco](https://img.shields.io/badge/Cisco-Network-blue?style=for-the-badge&logo=cisco)](https://www.cisco.com/)
+[![License](https://img.shields.io/badge/License-Enterprise-green?style=for-the-badge)](LICENSE)
+[![Security](https://img.shields.io/badge/Security-Zero--Trust-orange?style=for-the-badge&logo=security)](docs/security/)
+[![Automation](https://img.shields.io/badge/Automation-23%20Roles-purple?style=for-the-badge)](src/cisco_network_automation/roles/)
+
 A comprehensive enterprise-grade network automation platform specializing in Cisco network infrastructure orchestration with 23 infrastructure roles, advanced AI-driven optimization, and zero-trust security implementation.
 
 ---
@@ -22,7 +29,7 @@ This platform provides production-ready network automation for enterprise enviro
 
 #### 🚀 **New Users - Start Here**
 1. **[Getting Started Guide](docs/getting-started.md)** - Platform introduction and first steps
-2. **[User Guide](docs/USER_GUIDE.md)** - Complete platform reference
+2. **[User Guide](docs/user-guides/USER_GUIDE.md)** - Complete platform reference
 3. **[Production Checklist](docs/guides/deployment/PRODUCTION_CHECKLIST.md)** - Pre-deployment validation
 
 #### 🏢 **Enterprise Deployment**
@@ -40,16 +47,16 @@ This platform provides production-ready network automation for enterprise enviro
 ## 🏗️ **TIER 1: Platform Entry Points**
 
 ### 📖 **Essential Documentation**
-- **[📋 Getting Started Guide](docs/getting-started.md)** - New user introduction and setup
-- **[📚 Consolidated Guide](docs/CONSOLIDATED_GUIDE.md)** - Complete platform reference guide
-- **[🏛️ Architecture Overview](docs/architecture/system-architecture.md)** - Platform architecture and design
-- **[🛡️ Security Framework](docs/security/)** - Security implementation and best practices
+- **[📋 Getting Started Guide](docs/user-guides/getting-started.md)** - New user introduction and setup
+- **[📚 Technical Reference](docs/TECHNICAL_REFERENCE.md)** - Complete platform reference guide
+- **[🏛️ Enterprise Architecture](docs/enterprise/README.md)** - Platform architecture and design
+- **[🛡️ Security Framework](docs/security/README.md)** - Security implementation and best practices
 
 ### 🎯 **Common Use Cases**
-- **[🚀 Getting Started](docs/getting-started.md)** - Simple automation setup
-- **[🏢 Enterprise Deployment](docs/CONSOLIDATED_GUIDE.md)** - Full enterprise stack  
-- **[🔒 Security Implementation](docs/security/)** - Security and compliance
-- **[🤖 Best Practices](docs/best-practices.md)** - Implementation guidelines
+- **[🚀 Getting Started](docs/user-guides/getting-started.md)** - Simple automation setup
+- **[🏢 Enterprise Deployment](docs/enterprise/README.md)** - Full enterprise stack  
+- **[🔒 Security Implementation](docs/security/README.md)** - Security and compliance
+- **[🤖 Best Practices](docs/user-guides/advanced-guide.md)** - Implementation guidelines
 
 ---
 
@@ -57,17 +64,17 @@ This platform provides production-ready network automation for enterprise enviro
 
 ### 🏗️ **Architecture**
 System design and architectural patterns
-- **[System Architecture](docs/architecture/system-architecture.md)** - Overall platform design
-- **[AI/ML Implementation](docs/AI_ML_IMPLEMENTATION_GUIDE.md)** - AI integration guide
-- **[Monitoring Architecture](docs/MONITORING_OBSERVABILITY_ARCHITECTURE.md)** - Observability framework
+- **[System Architecture](docs/enterprise/README.md)** - Overall platform design
+- **[Technical Reference](docs/TECHNICAL_REFERENCE.md)** - Technical implementation guide
+- **[Security Architecture](docs/security/architecture.md)** - Security framework
 
 ### 🛡️ **Security**
 Comprehensive security framework and implementation
-- **[Security Architecture](docs/SECURITY_ARCHITECTURE.md)** - Security design and threat models
-- **[Implementation Guide](docs/SECURITY_IMPLEMENTATION_GUIDE.md)** - Security deployment procedures
-- **[Compliance Guide](docs/SECURITY_COMPLIANCE.md)** - Regulatory compliance
-- **[Operations Guide](docs/SECURITY_OPERATIONS.md)** - Daily security operations
-- **[Security Checklist](docs/SECURITY_CHECKLIST.md)** - Validation checklist
+- **[Security Architecture](docs/security/architecture.md)** - Security design and threat models
+- **[Implementation Guide](docs/security/implementation.md)** - Security deployment procedures
+- **[Compliance Guide](docs/security/compliance.md)** - Regulatory compliance
+- **[Operations Guide](docs/security/operations.md)** - Daily security operations
+- **[Security Checklist](docs/security/checklist.md)** - Validation checklist
 
 ---
 
@@ -75,16 +82,16 @@ Comprehensive security framework and implementation
 
 ### 🚀 **Implementation Guides**
 Step-by-step deployment and configuration
-- **[Getting Started](docs/getting-started.md)** - New user setup and basic configuration
-- **[Advanced Guide](docs/ADVANCED_GUIDE.md)** - Enterprise deployment procedures
-- **[AI/ML Integration](docs/AI_ML_IMPLEMENTATION_GUIDE.md)** - AI platform deployment
-- **[Best Practices](docs/best-practices.md)** - Implementation best practices
+- **[Getting Started](docs/user-guides/getting-started.md)** - New user setup and basic configuration
+- **[Advanced Guide](docs/user-guides/advanced-guide.md)** - Enterprise deployment procedures
+- **[Technical Reference](docs/TECHNICAL_REFERENCE.md)** - Complete platform deployment
+- **[Interactive Tutorial](docs/user-guides/interactive-tutorial.md)** - Implementation best practices
 
 ### ⚙️ **Operations & Maintenance**
 Daily operations and troubleshooting
-- **[User Guide](docs/USER_GUIDE.md)** - Complete operational reference
-- **[Beginner's Guide](docs/beginners-guide.md)** - Step-by-step learning
-- **[Production Checklist](docs/guides/deployment/PRODUCTION_CHECKLIST.md)** - Pre-deployment validation
+- **[User Guide](docs/user-guides/USER_GUIDE.md)** - Complete operational reference
+- **[Beginner's Guide](docs/user-guides/beginners-guide.md)** - Step-by-step learning
+- **[Enterprise Guide](docs/enterprise/README.md)** - Pre-deployment validation
 
 ---
 
@@ -92,7 +99,7 @@ Daily operations and troubleshooting
 
 ### 🔍 **API Reference**
 Complete API documentation and specifications
-- **[API Reference](docs/API_REFERENCE.md)** - Complete API documentation
+- **[API Reference](docs/reference/api.md)** - Complete API documentation
 - REST API endpoints and authentication
 - Usage examples and SDKs
 
@@ -189,7 +196,7 @@ ansible --version  # Should be 2.12+
 5. **✅ Final Validation & Testing** - Comprehensive testing, security validation, performance benchmarking
 6. **📊 Deployment Summary** - Final reporting, documentation, audit trails, handover
 
-**👉 Detailed deployment procedures: [Production Checklist](docs/guides/deployment/PRODUCTION_CHECKLIST.md)**
+**👉 Detailed deployment procedures: [Enterprise Guide](docs/enterprise/README.md)**
 
 ---
 
@@ -218,18 +225,18 @@ ansible --version  # Should be 2.12+
 ## 📞 Support & Community
 
 ### 🚨 **Emergency Support**
-- **🔥 Critical Issues**: [Production Checklist](docs/guides/deployment/PRODUCTION_CHECKLIST.md#emergency-procedures)
+- **🔥 Critical Issues**: [Enterprise Guide](docs/enterprise/README.md#emergency-procedures)
 - **📞 Support**: [Documentation Directory](docs/)
-- **💬 Emergency**: [Security Operations](docs/SECURITY_OPERATIONS.md)
+- **💬 Emergency**: [Security Operations](docs/security/operations.md)
 
 ### 📚 **Learning Resources**
-- **[📖 Getting Started Guide](docs/getting-started.md)** - New user introduction
-- **[🎓 Beginner's Guide](docs/beginners-guide.md)** - Comprehensive training
-- **[💡 Best Practices](docs/best-practices.md)** - Implementation best practices
+- **[📖 Getting Started Guide](docs/user-guides/getting-started.md)** - New user introduction
+- **[🎓 Beginner's Guide](docs/user-guides/beginners-guide.md)** - Comprehensive training
+- **[💡 Advanced Guide](docs/user-guides/advanced-guide.md)** - Implementation best practices
 
 ### 🔧 **Troubleshooting & FAQ**
-- **[🔍 User Guide](docs/USER_GUIDE.md)** - Complete platform reference
-- **[⚡ Consolidated Guide](docs/CONSOLIDATED_GUIDE.md)** - All-in-one reference
+- **[🔍 User Guide](docs/user-guides/USER_GUIDE.md)** - Complete platform reference
+- **[⚡ Technical Reference](docs/TECHNICAL_REFERENCE.md)** - All-in-one reference
 - **[📋 Documentation](docs/)** - Complete documentation directory
 
 ---
