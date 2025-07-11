@@ -1,0 +1,216 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily at 3 AM UTC
+    - cron: '0 3 * * *'
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  secrets-scan:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: TruffleHog OSS Secrets Scan
+      uses: trufflesecurity/trufflehog@v3.82.6
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+
+    - name: GitLeaks Secrets Scan
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit[toml] pipenv
+
+    - name: Python Safety Check
+      run: |
+        pip freeze | safety check --stdin --output json > safety-report.json || true
+        
+    - name: Bandit Security Linter
+      run: |
+        bandit -r src/ -f json -o bandit-report.json || true
+
+    - name: Upload Python Security Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-security-reports
+        path: |
+          safety-report.json
+          bandit-report.json
+
+  iac-security-scan:
+    name: Infrastructure as Code Security
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Checkov IaC Security Scan
+      uses: bridgecrewio/checkov-action@v12
+      with:
+        directory: .
+        quiet: true
+        soft_fail: true
+        output_format: json
+        output_file_path: checkov-report.json
+        framework: ansible,yaml
+
+    - name: Terrascan IaC Security Scan
+      uses: tenable/terrascan-action@main
+      with:
+        iac_type: 'ansible'
+        iac_version: 'v1'
+        policy_type: 'all'
+        only_warn: true
+        sarif_upload: false
+
+    - name: Upload IaC Security Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: iac-security-reports
+        path: |
+          checkov-report.json
+          results.json
+
+  code-quality-scan:
+    name: Code Quality & Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: SonarCloud Scan
+      if: env.SONAR_TOKEN != null
+      uses: SonarSource/sonarcloud-github-action@v3.0.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    - name: CodeQL Analysis
+      uses: github/codeql-action/init@v3
+      with:
+        languages: python
+        queries: security-and-quality
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'docker') || contains(github.event.head_commit.message, 'container')
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.24.0
+      with:
+        scan-type: 'fs'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [secrets-scan, dependency-scan, iac-security-scan, code-quality-scan]
+    if: always()
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Generate consolidated security report
+      run: |
+        cat > security-report.md << 'EOF'
+        # Security Scan Report
+        
+        **Scan Date:** $(date -u)
+        **Repository:** ${{ github.repository }}
+        **Branch:** ${{ github.ref_name }}
+        **Commit:** ${{ github.sha }}
+        
+        ## Scan Summary
+        
+        | Scan Type | Status |
+        |-----------|--------|
+        | Secrets Detection | ${{ needs.secrets-scan.result }} |
+        | Dependency Vulnerabilities | ${{ needs.dependency-scan.result }} |
+        | Infrastructure as Code | ${{ needs.iac-security-scan.result }} |
+        | Code Quality & Security | ${{ needs.code-quality-scan.result }} |
+        
+        ## Next Steps
+        
+        1. Review failed scans in the Actions tab
+        2. Check uploaded artifacts for detailed reports
+        3. Address any identified security issues
+        4. Monitor GitHub Security tab for ongoing alerts
+        
+        EOF
+
+    - name: Upload consolidated security report
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-scan-report
+        path: security-report.md
+
+    - name: Comment on PR with security status
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('security-report.md', 'utf8');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## 🔒 Security Scan Results\n\n${report}`
+          });

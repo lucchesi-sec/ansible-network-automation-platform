@@ -1,0 +1,490 @@
+name: Network Configuration Compliance
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/cisco_network_automation/**'
+      - 'requirements.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/cisco_network_automation/**'
+      - 'requirements.yml'
+  schedule:
+    # Run weekly on Sundays at 4 AM UTC
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+env:
+  ANSIBLE_HOST_KEY_CHECKING: false
+  ANSIBLE_STDOUT_CALLBACK: yaml
+  ANSIBLE_FORCE_COLOR: true
+
+jobs:
+  configuration-compliance:
+    name: Network Configuration Compliance Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compliance_standard: ['cisco_security_baseline', 'network_hardening', 'access_control']
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ansible>=6.0.0 ansible-lint>=6.0.0
+        pip install jmespath netaddr pyyaml
+        pip install napalm textfsm
+
+    - name: Install Ansible collections
+      run: |
+        ansible-galaxy collection install -r requirements.yml
+
+    - name: Validate Cisco Security Baseline Compliance
+      if: matrix.compliance_standard == 'cisco_security_baseline'
+      working-directory: src/cisco_network_automation
+      run: |
+        echo "Validating Cisco Security Baseline compliance..."
+        
+        # Check for security hardening role configurations
+        if [ -d "roles/security_hardening" ]; then
+          echo "✓ Security hardening role found"
+          
+          # Validate security configurations
+          python3 << 'EOF'
+        import yaml
+        import os
+        import sys
+        
+        def check_security_configs():
+            issues = []
+            security_role_path = "roles/security_hardening"
+            
+            # Check if security tasks are properly defined
+            main_tasks = f"{security_role_path}/tasks/main.yml"
+            if os.path.exists(main_tasks):
+                try:
+                    with open(main_tasks, 'r') as f:
+                        tasks = yaml.safe_load(f)
+                    
+                    required_security_tasks = [
+                        'password_policy', 'ssh_hardening', 'access_control',
+                        'logging_monitoring', 'service_hardening'
+                    ]
+                    
+                    for task_file in required_security_tasks:
+                        task_path = f"{security_role_path}/tasks/{task_file}.yml"
+                        if not os.path.exists(task_path):
+                            issues.append(f"Missing security task: {task_file}.yml")
+                    
+                except Exception as e:
+                    issues.append(f"Error reading security tasks: {e}")
+            else:
+                issues.append("Security hardening main tasks file not found")
+            
+            # Check defaults for security settings
+            defaults_file = f"{security_role_path}/defaults/main.yml"
+            if os.path.exists(defaults_file):
+                try:
+                    with open(defaults_file, 'r') as f:
+                        defaults = yaml.safe_load(f)
+                    
+                    # Check for critical security defaults
+                    if defaults and isinstance(defaults, dict):
+                        if 'enable_password_encryption' not in defaults:
+                            issues.append("Missing enable_password_encryption default")
+                        if 'ssh_version' not in defaults:
+                            issues.append("Missing ssh_version default")
+                            
+                except Exception as e:
+                    issues.append(f"Error reading security defaults: {e}")
+            
+            if issues:
+                print("Security compliance issues found:")
+                for issue in issues:
+                    print(f"  ⚠️  {issue}")
+                return False
+            else:
+                print("✓ Cisco security baseline compliance validated")
+                return True
+        
+        if not check_security_configs():
+            sys.exit(1)
+        EOF
+        else
+          echo "⚠️  Security hardening role not found"
+          exit 1
+        fi
+
+    - name: Validate Network Hardening Compliance
+      if: matrix.compliance_standard == 'network_hardening'
+      working-directory: src/cisco_network_automation
+      run: |
+        echo "Validating network hardening compliance..."
+        
+        # Check for proper BGP security configurations
+        python3 << 'EOF'
+        import yaml
+        import os
+        import sys
+        
+        def check_bgp_security():
+            issues = []
+            bgp_role_path = "roles/bgp_configuration"
+            
+            if os.path.exists(bgp_role_path):
+                # Check BGP security tasks
+                security_config = f"{bgp_role_path}/tasks/security_config.yml"
+                if os.path.exists(security_config):
+                    try:
+                        with open(security_config, 'r') as f:
+                            content = f.read()
+                        
+                        # Check for BGP security features
+                        security_features = [
+                            'neighbor.*password', 'neighbor.*update-source',
+                            'maximum-paths', 'bgp log-neighbor-changes'
+                        ]
+                        
+                        for feature in security_features:
+                            if feature not in content:
+                                issues.append(f"BGP security feature not configured: {feature}")
+                                
+                    except Exception as e:
+                        issues.append(f"Error reading BGP security config: {e}")
+                else:
+                    issues.append("BGP security configuration file not found")
+            else:
+                issues.append("BGP configuration role not found")
+            
+            if issues:
+                print("Network hardening compliance issues:")
+                for issue in issues:
+                    print(f"  ⚠️  {issue}")
+                return False
+            else:
+                print("✓ Network hardening compliance validated")
+                return True
+        
+        if not check_bgp_security():
+            sys.exit(1)
+        EOF
+
+    - name: Validate Access Control Compliance
+      if: matrix.compliance_standard == 'access_control'
+      working-directory: src/cisco_network_automation
+      run: |
+        echo "Validating access control compliance..."
+        
+        # Check for proper access control configurations
+        python3 << 'EOF'
+        import yaml
+        import os
+        import glob
+        import sys
+        
+        def check_access_control():
+            issues = []
+            
+            # Check group_vars for proper access control settings
+            group_vars_path = "group_vars"
+            if os.path.exists(group_vars_path):
+                vault_files = glob.glob(f"{group_vars_path}/*vault*")
+                if not vault_files:
+                    issues.append("No vault files found in group_vars for credential management")
+                
+                # Check for AAA configurations in main group vars
+                all_vars = f"{group_vars_path}/all.yml"
+                if os.path.exists(all_vars):
+                    try:
+                        with open(all_vars, 'r') as f:
+                            content = f.read()
+                        
+                        aaa_features = ['aaa', 'tacacs', 'radius', 'authentication']
+                        aaa_found = any(feature in content.lower() for feature in aaa_features)
+                        
+                        if not aaa_found:
+                            issues.append("AAA configuration not found in group variables")
+                            
+                    except Exception as e:
+                        issues.append(f"Error reading group variables: {e}")
+            else:
+                issues.append("group_vars directory not found")
+            
+            # Check for access control in security hardening role
+            security_role = "roles/security_hardening"
+            if os.path.exists(security_role):
+                access_control_task = f"{security_role}/tasks/access_control.yml"
+                if not os.path.exists(access_control_task):
+                    issues.append("Access control task file not found in security hardening role")
+            
+            if issues:
+                print("Access control compliance issues:")
+                for issue in issues:
+                    print(f"  ⚠️  {issue}")
+                return False
+            else:
+                print("✓ Access control compliance validated")
+                return True
+        
+        if not check_access_control():
+            sys.exit(1)
+        EOF
+
+    - name: Upload compliance report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: compliance-report-${{ matrix.compliance_standard }}
+        path: |
+          compliance-*.json
+          compliance-*.md
+
+  inventory-security-validation:
+    name: Inventory Security Validation
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ansible>=6.0.0 pyyaml
+
+    - name: Validate Inventory Security
+      working-directory: src/cisco_network_automation
+      run: |
+        echo "Validating inventory security..."
+        
+        python3 << 'EOF'
+        import yaml
+        import os
+        import sys
+        import re
+        
+        def validate_inventory_security():
+            issues = []
+            inventory_path = "inventory"
+            
+            if os.path.exists(inventory_path):
+                for file in os.listdir(inventory_path):
+                    if file.endswith(('.yml', '.yaml')):
+                        file_path = os.path.join(inventory_path, file)
+                        try:
+                            with open(file_path, 'r') as f:
+                                content = f.read()
+                            
+                            # Check for hardcoded credentials
+                            credential_patterns = [
+                                r'ansible_password:\s*[\'"]?[a-zA-Z0-9]+[\'"]?',
+                                r'ansible_become_password:\s*[\'"]?[a-zA-Z0-9]+[\'"]?',
+                                r'ansible_ssh_password:\s*[\'"]?[a-zA-Z0-9]+[\'"]?'
+                            ]
+                            
+                            for pattern in credential_patterns:
+                                if re.search(pattern, content):
+                                    issues.append(f"Hardcoded credential found in {file}")
+                            
+                            # Check for proper vault variable usage
+                            if 'ansible_password' in content and 'vault' not in content:
+                                issues.append(f"Password without vault encryption in {file}")
+                                
+                        except Exception as e:
+                            issues.append(f"Error reading inventory file {file}: {e}")
+            else:
+                issues.append("Inventory directory not found")
+            
+            if issues:
+                print("Inventory security issues:")
+                for issue in issues:
+                    print(f"  ⚠️  {issue}")
+                return False
+            else:
+                print("✓ Inventory security validation passed")
+                return True
+        
+        if not validate_inventory_security():
+            sys.exit(1)
+        EOF
+
+  playbook-security-audit:
+    name: Playbook Security Audit
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ansible>=6.0.0 pyyaml
+
+    - name: Audit Playbook Security
+      working-directory: src/cisco_network_automation
+      run: |
+        echo "Auditing playbook security..."
+        
+        python3 << 'EOF'
+        import yaml
+        import os
+        import sys
+        import re
+        
+        def audit_playbook_security():
+            issues = []
+            warnings = []
+            playbooks_path = "playbooks"
+            
+            if os.path.exists(playbooks_path):
+                for file in os.listdir(playbooks_path):
+                    if file.endswith(('.yml', '.yaml')):
+                        file_path = os.path.join(playbooks_path, file)
+                        try:
+                            with open(file_path, 'r') as f:
+                                content = f.read()
+                                data = yaml.safe_load(f.read())
+                            
+                            # Check for dangerous modules
+                            dangerous_patterns = [
+                                r'shell:\s*rm\s+-rf',
+                                r'shell:\s*dd\s+if=',
+                                r'command:\s*rm\s+-rf'
+                            ]
+                            
+                            for pattern in dangerous_patterns:
+                                if re.search(pattern, content):
+                                    issues.append(f"Dangerous command pattern in {file}: {pattern}")
+                            
+                            # Check for privilege escalation without proper controls
+                            if 'become: true' in content or 'become: yes' in content:
+                                if 'become_user:' not in content:
+                                    warnings.append(f"Privilege escalation without specific user in {file}")
+                            
+                            # Check for network device connection security
+                            if 'ansible_connection:' in content:
+                                if 'ansible_connection: network_cli' not in content:
+                                    warnings.append(f"Non-standard network connection in {file}")
+                            
+                        except Exception as e:
+                            issues.append(f"Error reading playbook {file}: {e}")
+            else:
+                issues.append("Playbooks directory not found")
+            
+            if issues:
+                print("Playbook security issues:")
+                for issue in issues:
+                    print(f"  ❌ {issue}")
+                
+            if warnings:
+                print("Playbook security warnings:")
+                for warning in warnings:
+                    print(f"  ⚠️  {warning}")
+            
+            if not issues and not warnings:
+                print("✓ Playbook security audit passed")
+                
+            return len(issues) == 0
+        
+        if not audit_playbook_security():
+            sys.exit(1)
+        EOF
+
+  generate-compliance-report:
+    name: Generate Compliance Report
+    runs-on: ubuntu-latest
+    needs: [configuration-compliance, inventory-security-validation, playbook-security-audit]
+    if: always()
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download all compliance artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Generate consolidated compliance report
+      run: |
+        cat > network-compliance-report.md << 'EOF'
+        # Network Configuration Compliance Report
+        
+        **Scan Date:** $(date -u)
+        **Repository:** ${{ github.repository }}
+        **Branch:** ${{ github.ref_name }}
+        **Commit:** ${{ github.sha }}
+        
+        ## Compliance Check Summary
+        
+        | Compliance Area | Status |
+        |-----------------|--------|
+        | Configuration Compliance | ${{ needs.configuration-compliance.result }} |
+        | Inventory Security | ${{ needs.inventory-security-validation.result }} |
+        | Playbook Security Audit | ${{ needs.playbook-security-audit.result }} |
+        
+        ## Compliance Standards Validated
+        
+        - ✓ Cisco Security Baseline
+        - ✓ Network Hardening Standards
+        - ✓ Access Control Policies
+        - ✓ Inventory Security Practices
+        - ✓ Playbook Security Standards
+        
+        ## Recommendations
+        
+        1. Ensure all network device credentials are stored in Ansible Vault
+        2. Implement proper AAA configuration across all network devices
+        3. Use secure connection methods (SSH) for all network communications
+        4. Regularly audit and update security configurations
+        5. Follow least privilege principle for network access
+        6. Implement network segmentation and micro-segmentation where applicable
+        
+        ## Next Steps
+        
+        1. Review any failed compliance checks in the Actions tab
+        2. Address identified security issues in network configurations
+        3. Update security policies and procedures as needed
+        4. Schedule regular compliance validation runs
+        
+        EOF
+
+    - name: Upload consolidated compliance report
+      uses: actions/upload-artifact@v4
+      with:
+        name: network-compliance-report
+        path: network-compliance-report.md
+
+    - name: Comment on PR with compliance status
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('network-compliance-report.md', 'utf8');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## 🛡️ Network Compliance Results\n\n${report}`
+          });

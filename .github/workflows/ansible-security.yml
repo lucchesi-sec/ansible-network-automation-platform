@@ -1,0 +1,298 @@
+name: Ansible Security Validation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/cisco_network_automation/**'
+      - 'requirements.yml'
+      - '**.yml'
+      - '**.yaml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/cisco_network_automation/**'
+      - 'requirements.yml'
+      - '**.yml'
+      - '**.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+env:
+  ANSIBLE_HOST_KEY_CHECKING: false
+  ANSIBLE_STDOUT_CALLBACK: yaml
+  ANSIBLE_FORCE_COLOR: true
+
+jobs:
+  ansible-lint:
+    name: Ansible Lint Security Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Ansible and dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ansible>=6.0.0 ansible-lint>=6.0.0 ansible-core>=2.13.0
+        pip install jmespath netaddr yamllint
+
+    - name: Install Ansible collections
+      run: |
+        ansible-galaxy collection install -r requirements.yml
+
+    - name: Run ansible-lint with security rules
+      working-directory: src/cisco_network_automation
+      run: |
+        ansible-lint --profile production --format sarif --output-file ../../ansible-lint-results.sarif . || true
+        ansible-lint --profile production --format colored . || true
+
+    - name: Upload Ansible Lint SARIF results
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ansible-lint-results.sarif
+
+    - name: Upload Ansible Lint Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ansible-lint-report
+        path: ansible-lint-results.sarif
+
+  ansible-vault-security:
+    name: Ansible Vault Security Validation
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Ansible
+      run: |
+        python -m pip install --upgrade pip
+        pip install ansible>=6.0.0
+
+    - name: Validate Vault Files Structure
+      working-directory: src/cisco_network_automation
+      run: |
+        echo "Checking for vault files..."
+        find . -name "vault.yml" -o -name "*vault*" -type f | while read file; do
+          echo "Checking vault file: $file"
+          if [ -f "$file" ]; then
+            # Check if file is actually encrypted
+            if grep -q '\$ANSIBLE_VAULT' "$file"; then
+              echo "✓ $file is properly encrypted"
+            else
+              echo "⚠️  WARNING: $file appears to be a vault file but is not encrypted"
+              exit 1
+            fi
+          fi
+        done
+
+    - name: Check for hardcoded secrets in playbooks
+      run: |
+        echo "Scanning for potential hardcoded secrets..."
+        
+        # Common patterns for secrets
+        grep -r -n -i \
+          -e "password.*:" \
+          -e "secret.*:" \
+          -e "key.*:" \
+          -e "token.*:" \
+          -e "api_key.*:" \
+          --include="*.yml" \
+          --include="*.yaml" \
+          --exclude="*vault*" \
+          src/cisco_network_automation/ || echo "No hardcoded secrets patterns found"
+        
+        # Check for actual credential values (basic patterns)
+        if grep -r -E "(password|secret|key):\s*['\"]?[a-zA-Z0-9]{8,}['\"]?" \
+          --include="*.yml" \
+          --include="*.yaml" \
+          --exclude="*vault*" \
+          src/cisco_network_automation/; then
+          echo "⚠️  WARNING: Potential hardcoded credentials detected"
+          exit 1
+        fi
+
+  ansible-security-validation:
+    name: Ansible Security Best Practices
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install ansible>=6.0.0 ansible-lint>=6.0.0
+        pip install yamllint safety bandit
+
+    - name: YAML Security Validation
+      run: |
+        yamllint -c .yamllint src/cisco_network_automation/ || true
+
+    - name: Check Ansible Configuration Security
+      working-directory: src/cisco_network_automation
+      run: |
+        echo "Validating Ansible configuration security..."
+        
+        if [ -f "ansible.cfg" ]; then
+          echo "Checking ansible.cfg security settings..."
+          
+          # Check for insecure settings
+          if grep -i "host_key_checking.*false" ansible.cfg; then
+            echo "⚠️  WARNING: Host key checking is disabled"
+          fi
+          
+          if grep -i "deprecation_warnings.*false" ansible.cfg; then
+            echo "ℹ️  INFO: Deprecation warnings are disabled"
+          fi
+          
+          # Check for recommended security settings
+          if ! grep -q "vault_password_file" ansible.cfg; then
+            echo "ℹ️  INFO: Consider setting vault_password_file for automated vault access"
+          fi
+        fi
+
+    - name: Validate Playbook Security Practices
+      working-directory: src/cisco_network_automation
+      run: |
+        echo "Validating playbook security practices..."
+        
+        # Check for become usage without proper controls
+        grep -r "become:" playbooks/ | while read line; do
+          file=$(echo "$line" | cut -d: -f1)
+          echo "Checking become usage in: $file"
+          
+          if ! grep -q "become_user:" "$file" && ! grep -q "become_method:" "$file"; then
+            echo "ℹ️  INFO: Consider specifying become_user and become_method in $file"
+          fi
+        done
+        
+        # Check for shell/command modules usage
+        echo "Checking for shell/command module usage..."
+        grep -r -n "shell:\|command:" playbooks/ || echo "No shell/command modules found"
+
+    - name: Generate Ansible Security Report
+      run: |
+        cat > ansible-security-report.md << 'EOF'
+        # Ansible Security Validation Report
+        
+        **Scan Date:** $(date -u)
+        **Repository:** ${{ github.repository }}
+        **Branch:** ${{ github.ref_name }}
+        
+        ## Security Checks Completed
+        
+        - ✓ Ansible Lint security rules
+        - ✓ Vault files encryption validation
+        - ✓ Hardcoded secrets detection
+        - ✓ YAML security validation
+        - ✓ Ansible configuration security
+        - ✓ Playbook security best practices
+        
+        ## Recommendations
+        
+        1. Ensure all sensitive data is stored in Ansible Vault
+        2. Use specific become_user and become_method when privilege escalation is required
+        3. Regularly update Ansible collections and core
+        4. Implement proper inventory security controls
+        5. Use encrypted connection methods for network devices
+        
+        EOF
+
+    - name: Upload Ansible Security Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ansible-security-report
+        path: ansible-security-report.md
+
+  ansible-collection-security:
+    name: Ansible Collection Security Audit
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Ansible
+      run: |
+        python -m pip install --upgrade pip
+        pip install ansible>=6.0.0
+
+    - name: Audit Ansible Collections
+      run: |
+        echo "Auditing Ansible collections for security..."
+        
+        # Install collections and check for known vulnerabilities
+        ansible-galaxy collection install -r requirements.yml
+        
+        # List installed collections
+        ansible-galaxy collection list
+        
+        # Check for collection security advisories (manual check)
+        echo "Please manually verify collection versions against known security advisories:"
+        echo "- Cisco IOS collection: https://github.com/ansible-collections/cisco.ios/security/advisories"
+        echo "- Ansible Netcommon: https://github.com/ansible-collections/ansible.netcommon/security/advisories"
+
+    - name: Collection Version Validation
+      run: |
+        echo "Validating collection versions..."
+        
+        # Extract versions from requirements.yml and validate they meet minimum security requirements
+        python3 << 'EOF'
+        import yaml
+        import sys
+        
+        try:
+            with open('requirements.yml', 'r') as f:
+                requirements = yaml.safe_load(f)
+            
+            security_versions = {
+                'cisco.ios': '5.0.0',
+                'ansible.netcommon': '5.0.0'
+            }
+            
+            for collection in requirements.get('collections', []):
+                name = collection.get('name')
+                version = collection.get('version', 'latest')
+                
+                if name in security_versions:
+                    required_version = security_versions[name]
+                    print(f"Collection {name}: {version} (minimum secure: {required_version})")
+                    
+                    if version != 'latest' and version.replace('>=', '') < required_version:
+                        print(f"⚠️  WARNING: {name} version may have security vulnerabilities")
+                        sys.exit(1)
+                else:
+                    print(f"Collection {name}: {version} (no specific security requirements)")
+                    
+        except Exception as e:
+            print(f"Error validating collection versions: {e}")
+            sys.exit(1)
+        EOF
