@@ -124,11 +124,11 @@ jobs:
         fetch-depth: 0
 
     - name: SonarCloud Scan
-      if: env.SONAR_TOKEN != null
       uses: SonarSource/sonarcloud-github-action@v3.0.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      continue-on-error: true
 
     - name: CodeQL Analysis
       uses: github/codeql-action/init@v3

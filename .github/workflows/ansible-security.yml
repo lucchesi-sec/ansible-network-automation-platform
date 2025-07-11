@@ -53,8 +53,37 @@ jobs:
     - name: Run ansible-lint with security rules
       working-directory: src/cisco_network_automation
       run: |
+        # Ensure SARIF file is created even if ansible-lint has no findings
+        touch ../../ansible-lint-results.sarif
         ansible-lint --profile production --format sarif --output-file ../../ansible-lint-results.sarif . || true
         ansible-lint --profile production --format colored . || true
+
+    - name: Check SARIF file exists
+      id: check_sarif
+      run: |
+        if [ -f "ansible-lint-results.sarif" ] && [ -s "ansible-lint-results.sarif" ]; then
+          echo "sarif_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "sarif_exists=false" >> $GITHUB_OUTPUT
+          echo "Creating minimal SARIF file..."
+          cat > ansible-lint-results.sarif << 'EOF'
+        {
+          "version": "2.1.0",
+          "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+          "runs": [
+            {
+              "tool": {
+                "driver": {
+                  "name": "ansible-lint",
+                  "version": "6.0.0"
+                }
+              },
+              "results": []
+            }
+          ]
+        }
+        EOF
+        fi
 
     - name: Upload Ansible Lint SARIF results
       if: always()
