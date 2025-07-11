@@ -123,15 +123,6 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@v3.0.0
-      with:
-        args: >
-          -Dsonar.scm.provider=git
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
     - name: CodeQL Analysis
       uses: github/codeql-action/init@v3
       with:
