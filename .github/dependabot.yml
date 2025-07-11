@@ -1,11 +1,73 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible valuesf
-    directory: "/" # Location of package manifests
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 5
+    # reviewers:
+    #   - "your-github-username"  # Replace with actual GitHub username
+    # assignees:
+    #   - "your-github-username"  # Replace with actual GitHub username
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "security"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # Python dependencies (if any pip requirements files exist)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "06:00"
+    open-pull-requests-limit: 5
+    # reviewers:
+    #   - "your-github-username"  # Replace with actual GitHub username
+    # assignees:
+    #   - "your-github-username"  # Replace with actual GitHub username
+    labels:
+      - "dependencies"
+      - "python"
+      - "security"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      # Ignore minor and patch updates for stable packages
+      - dependency-name: "ansible*"
+        update-types: ["version-update:semver-patch"]
+
+  # Ansible collections and Galaxy dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/src/cisco_network_automation"
+    schedule:
+      interval: "weekly" 
+      day: "wednesday"
+      time: "06:00"
+    open-pull-requests-limit: 3
+    # reviewers:
+    #   - "your-github-username"  # Replace with actual GitHub username
+    # assignees:
+    #   - "your-github-username"  # Replace with actual GitHub username
+    labels:
+      - "dependencies"
+      - "ansible"
+      - "network-automation"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+# Note: Dependabot doesn't natively support Ansible Galaxy requirements.yml
+# Consider using a custom workflow or action for Ansible collection updates
+# Alternative approach would be to create a separate workflow that:
+# 1. Checks for updated Ansible collections weekly
+# 2. Creates PRs with collection updates
+# 3. Validates the updates against the test suite
+# 4. Provides security analysis of collection changes
