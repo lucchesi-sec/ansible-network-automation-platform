@@ -1,0 +1,5 @@
+# Ignore example credentials from historical commit
+611475b:docs/reference/api.md:curl-auth-header:13
+611475b:docs/reference/api.md:curl-auth-header:20
+611475b:docs/guides/operations/configuration-management.md:generic-api-key:668
+611475b:docs/technical/configuration-management.md:generic-api-key:668
