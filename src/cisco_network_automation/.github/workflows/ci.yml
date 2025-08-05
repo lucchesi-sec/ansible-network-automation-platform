@@ -1,5 +1,5 @@
 ---
-name: Enterprise Network Deployment CI
+name: Network Deployment CI
 
 on:
   push:

@@ -3,8 +3,8 @@
 galaxy_info:
   role_name: bgp_configuration
   author: Infrastructure Orchestrator
-  description: Enterprise BGP routing protocol configuration for Cisco devices
-  company: Enterprise Network
+  description: Production BGP routing protocol configuration for Cisco devices
+company: Network
   license: MIT
   min_ansible_version: "2.12"
   
@@ -20,7 +20,7 @@ galaxy_info:
     - bgp
     - routing
     - network
-    - enterprise
+    - production
     - protocols
 
 dependencies:

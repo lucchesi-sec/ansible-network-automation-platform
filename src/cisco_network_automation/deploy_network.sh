@@ -1,7 +1,7 @@
 #\!/bin/bash
 
-# Enterprise Deployment Orchestration Script
-# Executes master enterprise deployment with comprehensive automation
+# Network Deployment Orchestration Script
+# Executes master network deployment with comprehensive automation
 
 set -euo pipefail
 
@@ -47,9 +47,9 @@ print_error() {
 # Function to display usage
 usage() {
     cat << 'USAGE_EOF'
-Enterprise Deployment Orchestration Script
+Network Deployment Orchestration Script
 
-Usage: ./deploy_enterprise.sh [OPTIONS]
+Usage: ./deploy_network.sh [OPTIONS]
 
 OPTIONS:
     -e, --environment ENV       Deployment environment (development|staging|production)
@@ -65,16 +65,16 @@ OPTIONS:
 
 EXAMPLES:
     # Standard production deployment
-    ./deploy_enterprise.sh --environment production --vault-password vault-password-script.sh
+    ./deploy_network.sh --environment production --vault-password vault-password-script.sh
 
     # Development deployment with verbose output
-    ./deploy_enterprise.sh --environment development --verbose
+    ./deploy_network.sh --environment development --verbose
 
     # Dry run for staging environment
-    ./deploy_enterprise.sh --environment staging --dry-run
+    ./deploy_network.sh --environment staging --dry-run
 
     # Emergency rollback
-    ./deploy_enterprise.sh --rollback --environment production
+    ./deploy_network.sh --rollback --environment production
 
 USAGE_EOF
 }
@@ -83,7 +83,7 @@ USAGE_EOF
 validate_prerequisites() {
     print_status "Validating deployment prerequisites..."
     
-    if [[ \! -f "${PLAYBOOK_DIR}/master_enterprise_deployment.yml" ]]; then
+    if [[ \! -f "${PLAYBOOK_DIR}/master_network_deployment.yml" ]]; then
         print_error "Master deployment playbook not found. Please run from the correct directory."
         exit 1
     fi
@@ -110,10 +110,10 @@ validate_prerequisites() {
 
 # Function to execute deployment
 execute_deployment() {
-    print_status "Starting enterprise deployment for environment: ${ENVIRONMENT}"
+    print_status "Starting network deployment for environment: ${ENVIRONMENT}"
     
     local ansible_cmd="ansible-playbook"
-    local playbook="${PLAYBOOK_DIR}/master_enterprise_deployment.yml"
+    local playbook="${PLAYBOOK_DIR}/master_network_deployment.yml"
     local inventory_arg="-i ${INVENTORY_DIR}/${INVENTORY_FILE}"
     local extra_vars="-e environment=${ENVIRONMENT}"
     
@@ -135,10 +135,10 @@ execute_deployment() {
     print_status "Executing: ${full_cmd}"
     
     if eval "${full_cmd}"; then
-        print_success "Enterprise deployment completed successfully"
+        print_success "Network deployment completed successfully"
         return 0
     else
-        print_error "Enterprise deployment failed"
+        print_error "Network deployment failed"
         return 1
     fi
 }
@@ -224,7 +224,7 @@ fi
 
 # Main execution
 main() {
-    print_status "Enterprise Deployment Orchestration Starting..."
+    print_status "Network Deployment Orchestration Starting..."
     print_status "Environment: ${ENVIRONMENT}"
     print_status "Inventory: ${INVENTORY_FILE}"
     
@@ -240,13 +240,13 @@ main() {
     fi
     
     if execute_deployment; then
-        print_success "=== ENTERPRISE DEPLOYMENT ORCHESTRATION COMPLETE ==="
+        print_success "=== NETWORK DEPLOYMENT ORCHESTRATION COMPLETE ==="
         print_success "Environment: ${ENVIRONMENT}"
         print_success "All 19 infrastructure roles deployed successfully"
         print_success "Check deployment logs in: ${LOG_DIR}"
         exit 0
     else
-        print_error "=== ENTERPRISE DEPLOYMENT FAILED ==="
+        print_error "=== NETWORK DEPLOYMENT FAILED ==="
         print_error "Check logs for details and consider running rollback"
         exit 1
     fi

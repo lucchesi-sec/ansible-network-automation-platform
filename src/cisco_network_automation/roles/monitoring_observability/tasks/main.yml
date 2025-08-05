@@ -1,6 +1,6 @@
 ---
 # Monitoring & Observability Role - Main Tasks
-# Enterprise-scale monitoring and observability deployment
+# Production-scale monitoring and observability deployment
 
 - name: Include monitoring and observability variables
   include_vars: "{{ item }}"
@@ -48,7 +48,7 @@
   include_tasks: deploy_data_pipeline.yml
   when:
     - monitoring_enabled | bool
-    - deployment_mode == "enterprise"
+    - deployment_mode == "production"
 
 - name: Integrate with existing roles
   include_tasks: integrate_existing_roles.yml

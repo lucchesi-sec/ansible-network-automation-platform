@@ -1,24 +1,24 @@
 ---
 # REST API Specification - Monitoring & Observability Platform
-# OpenAPI 3.0 specification for enterprise monitoring system
+# OpenAPI 3.0 specification for production monitoring system
 
 api_specification:
   openapi: "3.0.3"
   info:
-    title: "Enterprise Monitoring & Observability API"
+    title: "Production Monitoring & Observability API"
     description: "Comprehensive API for metrics collection, alerting, dashboard management, and log processing"
     version: "1.0.0"
     contact:
       name: "Network Operations Team"
-      email: "netops@enterprise.local"
+      email: "netops@network.local"
     license:
       name: "MIT"
       url: "https://opensource.org/licenses/MIT"
   
   servers:
-    - url: "https://monitoring.enterprise.local/api/v1"
+    - url: "https://monitoring.network.local/api/v1"
       description: "Production monitoring API"
-    - url: "https://monitoring-staging.enterprise.local/api/v1"
+    - url: "https://monitoring-staging.network.local/api/v1"
       description: "Staging environment"
   
   security:

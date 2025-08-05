@@ -1,9 +1,9 @@
 ---
 # Core Routers Configuration Variables
-# Enterprise core routing infrastructure with BGP and OSPF
+# Production core routing infrastructure with BGP and OSPF
 
 # Global Core Router Settings
-core_router_type: "enterprise_core"
+core_router_type: "production_core"
 management_network: "10.0.0.0/16"
 core_vrf: "CORE"
 ospf_process_id: 1

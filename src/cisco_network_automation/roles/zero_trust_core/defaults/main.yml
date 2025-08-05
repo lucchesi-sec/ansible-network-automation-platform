@@ -12,12 +12,12 @@
 # Identity Integration Settings (inherited from group_vars/all.yml)
 # identity_sources:
 #   - type: active_directory
-#     server: dc01.enterprise.local
-#     backup_server: dc02.enterprise.local
-#     domain: enterprise.local
+#     server: dc01.network.local
+#     backup_server: dc02.network.local
+#     domain: network.local
 #   - type: radius
-#     server: radius01.enterprise.local
-#     backup_server: radius02.enterprise.local
+#     server: radius01.network.local
+#     backup_server: radius02.network.local
 #     port: 1812
 
 # Certificate Management (inherited from group_vars/all.yml)

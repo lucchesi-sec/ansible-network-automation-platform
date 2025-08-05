@@ -16,18 +16,18 @@ policy_validation_strict: true
 # Identity Provider Integration
 identity_provider_config:
   primary_ldap:
-    server: ldap01.enterprise.local
+    server: ldap01.network.local
     port: 636
     ssl_enabled: true
-    base_dn: "DC=enterprise,DC=local"
-    bind_user: "CN=ansible,CN=Users,DC=enterprise,DC=local"
+    base_dn: "DC=network,DC=local"
+    bind_user: "CN=ansible,CN=Users,DC=network,DC=local"
     bind_password: "{{ vault_ldap_bind_password }}"
   secondary_ldap:
-    server: ldap02.enterprise.local
+    server: ldap02.network.local
     port: 636
     ssl_enabled: true
-    base_dn: "DC=enterprise,DC=local"
-    bind_user: "CN=ansible,CN=Users,DC=enterprise,DC=local"
+    base_dn: "DC=network,DC=local"
+    bind_user: "CN=ansible,CN=Users,DC=network,DC=local"
     bind_password: "{{ vault_ldap_bind_password }}"
 
 # Risk Assessment Engine

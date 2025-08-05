@@ -1,6 +1,6 @@
 #!/bin/bash
 # Production Readiness Validation Script
-# Enterprise Network Deployment - Final Implementation
+# Network Deployment - Final Implementation
 
 set -e
 echo "========================================"
@@ -58,6 +58,6 @@ echo ""
 echo "Next steps:"
 echo "1. Review PRODUCTION_READINESS_REPORT.md"
 echo "2. Execute production deployment:"
-echo "   ./deploy_enterprise.sh --environment production"
+echo "   ./deploy_network.sh --environment production"
 echo "3. Monitor deployment logs in logs/ directory"
 echo "========================================"

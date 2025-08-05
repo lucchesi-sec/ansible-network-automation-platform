@@ -1,6 +1,6 @@
 ---
 # BGP Configuration Default Variables
-# Enterprise BGP routing configuration
+# Production BGP routing configuration
 
 # BGP Basic Configuration
 bgp_asn: "{{ vault_bgp_asn | default('65001') }}"

@@ -1,5 +1,5 @@
 ---
-- name: "Performance Benchmark - Enterprise Network"
+- name: "Performance Benchmark - Network"
   hosts: localhost
   gather_facts: true
   vars:

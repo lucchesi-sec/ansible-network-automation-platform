@@ -1,5 +1,5 @@
 ---
-- name: "Validation Suite - Enterprise Network Infrastructure"
+- name: "Validation Suite - Network Infrastructure"
   hosts: localhost
   gather_facts: true
   vars:

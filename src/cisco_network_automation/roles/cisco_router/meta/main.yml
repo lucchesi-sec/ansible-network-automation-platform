@@ -3,8 +3,8 @@
 galaxy_info:
   role_name: cisco_router
   author: Infrastructure Orchestrator
-  description: Enterprise Cisco router configuration and management
-  company: Enterprise Network
+  description: Production Cisco router configuration and management
+company: Network
   license: MIT
   min_ansible_version: "2.12"
   
@@ -20,7 +20,7 @@ galaxy_info:
     - router
     - network
     - infrastructure
-    - enterprise
+    - production
 
 dependencies:
   - role: security_hardening

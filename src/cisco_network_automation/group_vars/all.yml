@@ -24,7 +24,7 @@ logging_facility: local6
 # SNMP Configuration
 snmp_community: "{{ vault_snmp_community }}"
 snmp_location: "Zero Trust Network Infrastructure"
-snmp_contact: "netops@enterprise.local"
+snmp_contact: "netops@network.local"
 
 # Zero Trust Core Settings
 zero_trust_policy_enforcement: strict
@@ -37,12 +37,12 @@ software_defined_perimeter_mode: dynamic
 # Identity Integration
 identity_sources:
   - type: active_directory
-    server: dc01.enterprise.local
-    backup_server: dc02.enterprise.local
-    domain: enterprise.local
+    server: dc01.network.local
+    backup_server: dc02.network.local
+    domain: network.local
   - type: radius
-    server: radius01.enterprise.local
-    backup_server: radius02.enterprise.local
+    server: radius01.network.local
+    backup_server: radius02.network.local
     port: 1812
 
 # Certificate Management

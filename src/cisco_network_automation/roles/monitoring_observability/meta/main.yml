@@ -1,8 +1,8 @@
 ---
 galaxy_info:
   author: Network Automation Team
-  description: Enterprise Monitoring and Observability Architecture
-  company: Enterprise Network Operations
+  description: Production Monitoring and Observability Architecture
+company: Network Operations
   license: MIT
   min_ansible_version: 2.9
   platforms:

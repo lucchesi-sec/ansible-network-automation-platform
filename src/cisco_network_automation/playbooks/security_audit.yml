@@ -1,5 +1,5 @@
 ---
-- name: "Security Audit - Enterprise Network Infrastructure"
+- name: "Security Audit - Network Infrastructure"
   hosts: localhost
   gather_facts: true
   vars:
@@ -17,7 +17,7 @@
     - name: Initialize security audit report
       copy:
         content: |
-          ENTERPRISE NETWORK SECURITY AUDIT REPORT
+          NETWORK SECURITY AUDIT REPORT
           Audit Date: {{ ansible_date_time.iso8601 }}
           Audit ID: {{ audit_timestamp }}
           Environment: {{ environment | default('undefined') }}

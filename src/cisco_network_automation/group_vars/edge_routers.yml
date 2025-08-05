@@ -3,7 +3,7 @@
 # Edge routing for external connectivity with BGP peering
 
 # Global Edge Router Settings
-edge_router_type: "enterprise_edge"
+edge_router_type: "production_edge"
 management_network: "10.0.0.0/16"
 edge_vrf: "EDGE"
 ospf_process_id: 1

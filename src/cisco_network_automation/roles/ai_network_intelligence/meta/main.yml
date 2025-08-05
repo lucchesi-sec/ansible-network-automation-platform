@@ -5,7 +5,7 @@
 galaxy_info:
   author: Network Operations Team
   description: AI-driven network intelligence and automation controller
-  company: Enterprise Network Solutions
+  company: Network Solutions
   license: MIT
   min_ansible_version: 2.9
   platforms:

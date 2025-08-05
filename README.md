@@ -1,6 +1,6 @@
-# Enterprise Cisco Network Automation Platform
+# Cisco Network Automation Platform
 
-Simple, powerful Ansible automation for Cisco enterprise networks.
+Simple, powerful Ansible automation for Cisco networks.
 
 ## What This Does
 
@@ -35,7 +35,7 @@ Automates Cisco network infrastructure deployment across:
 4. **Deploy Network**
    ```bash
    cd src/cisco_network_automation
-   ansible-playbook playbooks/master_enterprise_deployment.yml
+   ansible-playbook playbooks/master_network_deployment.yml
    ```
 
 ## Project Structure
@@ -55,7 +55,7 @@ src/cisco_network_automation/
 - **Phased Deployment**: 6-phase rollout with validation
 - **Zero-Trust Security**: Advanced micro-segmentation  
 - **AI Integration**: Predictive analytics and self-healing
-- **Enterprise Ready**: Backup, rollback, and audit trails
+- **Production Ready**: Backup, rollback, and audit trails
 
 ## Core Roles
 
@@ -108,7 +108,7 @@ ansible-playbook playbooks/validate_pre_deployment.yml
 
 ## Support
 
-This platform automates enterprise Cisco networks with industry best practices for security, performance, and reliability.
+This platform automates Cisco networks with industry best practices for security, performance, and reliability.
 
 ---
 *Last updated: July 10, 2025*

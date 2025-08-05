@@ -1,10 +1,10 @@
 ---
 # Data Pipeline Architecture - High-Performance Telemetry Processing
-# Designed for enterprise-scale network monitoring with real-time and batch processing
+# Designed for production-scale network monitoring with real-time and batch processing
 
 data_pipeline_architecture:
   overview:
-    description: "Multi-tier data pipeline for processing network telemetry at enterprise scale"
+    description: "Multi-tier data pipeline for processing network telemetry at production scale"
     design_principles:
       - "Lambda Architecture (batch + stream processing)"
       - "Horizontal scalability"
@@ -296,7 +296,7 @@ storage_layer:
           scrape_interval: "15s"
           evaluation_interval: "15s"
           external_labels:
-            cluster: "enterprise-network"
+            cluster: "production-network"
             region: "{{ ansible_datacenter | default('dc1') }}"
         storage:
           retention_time: "90d"
@@ -321,7 +321,7 @@ storage_layer:
       architecture: "clustered_influxdb"
       configuration:
         version: "2.7"
-        organization: "enterprise"
+        organization: "production"
         buckets:
           - name: "network_metrics"
             retention_period: "90d"
@@ -406,20 +406,20 @@ storage_layer:
       architecture: "tiered_storage"
       buckets:
         hot_data:
-          name: "enterprise-monitoring-hot"
+          name: "production-monitoring-hot"
           storage_class: "standard"
           lifecycle_rules:
             - transition_to_ia: "30d"
             - transition_to_glacier: "90d"
         
         cold_data:
-          name: "enterprise-monitoring-cold"
+          name: "production-monitoring-cold"
           storage_class: "glacier"
           lifecycle_rules:
             - transition_to_deep_archive: "365d"
         
         backups:
-          name: "enterprise-monitoring-backups"
+          name: "production-monitoring-backups"
           storage_class: "standard_ia"
           versioning: true
           cross_region_replication: true

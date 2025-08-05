@@ -1,6 +1,6 @@
 ---
 # Integration Strategy - Monitoring & Observability with Existing Infrastructure
-# Seamless integration with 19 existing Ansible roles and enterprise systems
+# Seamless integration with 19 existing Ansible roles and production systems
 
 integration_strategy:
   overview:

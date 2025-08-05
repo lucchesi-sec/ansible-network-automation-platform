@@ -1,5 +1,5 @@
 ---
-- name: "Variable Schema Validation - Enterprise Network"
+- name: "Variable Schema Validation - Network"
   hosts: localhost
   gather_facts: true
   vars:

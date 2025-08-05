@@ -1,6 +1,6 @@
 ---
 # BGP Configuration Main Tasks
-# Enterprise BGP routing protocol configuration
+# Production BGP routing protocol configuration
 
 - name: Include BGP validation tasks
   include_tasks: validate_prerequisites.yml

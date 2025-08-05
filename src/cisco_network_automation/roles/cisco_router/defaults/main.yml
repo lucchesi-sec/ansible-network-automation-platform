@@ -1,6 +1,6 @@
 ---
 # Default variables for Cisco Router Role
-# Enterprise network router configuration defaults
+# Production network router configuration defaults
 
 # Basic settings
 minimum_ios_version: "15.1"
@@ -52,11 +52,11 @@ vty_session_timeout: "30"
 console_timeout: "5 0"
 
 # SNMP settings
-snmp_location: "{{ vault_snmp_location | default('Enterprise Network') }}"
+snmp_location: "{{ vault_snmp_location | default('Production Network') }}"
 snmp_contact: "{{ vault_snmp_contact | default('Network Admin') }}"
 
 # Testing
 internet_test_host: "8.8.8.8"
 
 # Banner message
-banner_message: "{{ vault_banner_message | default('AUTHORIZED ACCESS ONLY - Enterprise Network') }}"
+banner_message: "{{ vault_banner_message | default('AUTHORIZED ACCESS ONLY - Production Network') }}"

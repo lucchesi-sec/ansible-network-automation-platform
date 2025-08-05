@@ -1,6 +1,6 @@
 ---
 # Core Routing Infrastructure - Production Inventory
-# Enterprise-grade core routing with BGP and OSPF multi-area
+# Production-grade core routing with BGP and OSPF multi-area
 
 all:
   children:

@@ -1,5 +1,5 @@
 ---
-# Ansible Lint Configuration - Enterprise Network Deployment
+# Ansible Lint Configuration - Network Deployment
 profile: production
 use_default_rules: true
 verbosity: 1

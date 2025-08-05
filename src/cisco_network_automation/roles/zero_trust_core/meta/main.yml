@@ -5,7 +5,7 @@
 galaxy_info:
   author: Network Security Team
   description: Zero Trust core policies and continuous verification
-  company: Enterprise Network Solutions
+  company: Network Solutions
   license: MIT
   min_ansible_version: 2.9
   platforms:

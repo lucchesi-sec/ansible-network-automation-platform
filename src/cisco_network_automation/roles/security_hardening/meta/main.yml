@@ -3,8 +3,8 @@
 galaxy_info:
   role_name: security_hardening
   author: Infrastructure Orchestrator
-  description: Enterprise network security hardening for Cisco devices
-  company: Enterprise Network
+  description: Production network security hardening for Cisco devices
+company: Network
   license: MIT
   min_ansible_version: "2.12"
   
@@ -20,7 +20,7 @@ galaxy_info:
     - security
     - hardening
     - network
-    - enterprise
+    - production
     - compliance
 
 dependencies: []

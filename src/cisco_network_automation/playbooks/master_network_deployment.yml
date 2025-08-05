@@ -1,14 +1,14 @@
 ---
-# Master Enterprise Deployment Orchestration
+# Master Network Deployment Orchestration
 # Unified deployment of all 19 infrastructure roles across 6 phases
-# Enterprise-grade orchestration with phased deployment, backup/rollback, and comprehensive validation
+# Production-grade orchestration with phased deployment, backup/rollback, and comprehensive validation
 
-- name: Master Enterprise Deployment - Pre-Flight Checks
+- name: Master Network Deployment - Pre-Flight Checks
   hosts: localhost
   gather_facts: no
   vars:
     deployment_environment: "{{ environment | default('production') }}"
-    deployment_type: "master_enterprise"
+    deployment_type: "master_network"
     deployment_timestamp: "{{ ansible_date_time.epoch }}"
     deployment_id: "{{ deployment_environment }}_{{ deployment_type }}_{{ deployment_timestamp }}"
     deployment_base_path: "{{ playbook_dir }}/../logs/{{ deployment_id }}"
@@ -17,7 +17,7 @@
     - name: Display master deployment information
       debug:
         msg:
-          - "=== MASTER ENTERPRISE DEPLOYMENT ORCHESTRATION ==="
+          - "=== MASTER NETWORK DEPLOYMENT ORCHESTRATION ==="
           - "Environment: {{ deployment_environment }}"
           - "Deployment ID: {{ deployment_id }}"
           - "Timestamp: {{ deployment_timestamp }}"
@@ -76,7 +76,7 @@
     - name: Initialize deployment tracking
       copy:
         content: |
-          === MASTER ENTERPRISE DEPLOYMENT TRACKING ===
+          === MASTER NETWORK DEPLOYMENT TRACKING ===
           Deployment ID: {{ deployment_id }}
           Environment: {{ deployment_environment }}
           Started: {{ ansible_date_time.iso8601 }}
@@ -393,7 +393,7 @@
       copy:
         content: |
           ===============================================
-          MASTER ENTERPRISE DEPLOYMENT SUMMARY
+          MASTER NETWORK DEPLOYMENT SUMMARY
           ===============================================
           
           Deployment ID: {{ deployment_stats.deployment_id }}
@@ -465,9 +465,9 @@
           - Rollback data: {{ deployment_base_path }}/rollback_data/
           
           === DEPLOYMENT COMPLETE ===
-          Master Enterprise Deployment successfully completed
+          Master Network Deployment successfully completed
           All 19 infrastructure roles deployed across {{ deployment_stats.total_devices }} devices
-          Full enterprise-grade orchestration with backup and validation
+          Full production-grade orchestration with backup and validation
           
           ===============================================
           
@@ -478,7 +478,7 @@
       debug:
         msg:
           - "==============================================="
-          - "MASTER ENTERPRISE DEPLOYMENT COMPLETE"
+          - "MASTER NETWORK DEPLOYMENT COMPLETE"
           - "==============================================="
           - "Deployment ID: {{ deployment_stats.deployment_id }}"
           - "Environment: {{ deployment_stats.environment }}"
@@ -494,6 +494,6 @@
           - "  - Rollback data: {{ deployment_base_path }}/rollback_data/"
           - ""
           - "==============================================="
-          - "ENTERPRISE ORCHESTRATION COMPLETE"
+          - "NETWORK ORCHESTRATION COMPLETE"
           - "==============================================="
 EOF < /dev/null

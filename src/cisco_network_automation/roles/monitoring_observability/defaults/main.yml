@@ -4,7 +4,7 @@
 # Global Settings
 monitoring_enabled: true
 observability_stack: "prometheus-grafana-elk"
-deployment_mode: "enterprise"  # Options: basic, standard, enterprise
+deployment_mode: "production"  # Options: basic, standard, production
 high_availability: true
 multi_region_support: false
 
@@ -38,7 +38,7 @@ metrics_collection:
     scrape_interval: "15s"
     evaluation_interval: "15s"
     external_labels:
-      cluster: "enterprise-network"
+      cluster: "production-network"
       environment: "{{ ansible_environment | default('production') }}"
   
   # High-cardinality metrics
@@ -46,8 +46,8 @@ metrics_collection:
     enabled: true
     version: "2.7.0"
     retention_policy: "90d"
-    bucket: "enterprise-telemetry"
-    org: "enterprise"
+    bucket: "production-telemetry"
+org: "production"
   
   # SNMP Collection
   snmp_exporter:
@@ -106,10 +106,10 @@ alert_management:
       enabled: true
       smtp_server: "{{ vault_smtp_server }}"
       smtp_port: 587
-      from_address: "alerts@enterprise.local"
+      from_address: "alerts@network.local"
       to_addresses:
-        - netops@enterprise.local
-        - security@enterprise.local
+                  - netops@network.local
+          - security@network.local
     slack:
       enabled: true
       webhook_url: "{{ vault_slack_webhook }}"
@@ -165,7 +165,7 @@ log_processing:
   elasticsearch:
     enabled: true
     version: "8.9.0"
-    cluster_name: "enterprise-logs"
+    cluster_name: "production-logs"
     storage_size: "200Gi"
     replicas: 1
     shards: 3
@@ -261,12 +261,12 @@ integration:
   external_systems:
     cisco_dna_center:
       enabled: false
-      api_endpoint: "https://dnac.enterprise.local"
+      api_endpoint: "https://dnac.network.local"
       username: "{{ vault_dnac_username }}"
       password: "{{ vault_dnac_password }}"
     cisco_ise:
       enabled: false
-      api_endpoint: "https://ise.enterprise.local"
+      api_endpoint: "https://ise.network.local"
       username: "{{ vault_ise_username }}"
       password: "{{ vault_ise_password }}"
 
@@ -325,7 +325,7 @@ backup:
   retention: 30
   storage:
     type: "s3"
-    bucket: "enterprise-monitoring-backups"
+    bucket: "production-monitoring-backups"
     region: "us-east-1"
 
 # Feature Flags
