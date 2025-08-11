@@ -26,14 +26,14 @@ jobs:
 
     - name: TruffleHog OSS Secrets Scan (Push)
       if: github.event_name == 'push'
-      uses: trufflesecurity/trufflehog@v3.90.1
+      uses: trufflesecurity/trufflehog@v3.90.3
       with:
         path: ./
         extra_args: --debug --only-verified
 
     - name: TruffleHog OSS Secrets Scan (PR)
       if: github.event_name == 'pull_request'
-      uses: trufflesecurity/trufflehog@v3.90.1
+      uses: trufflesecurity/trufflehog@v3.90.3
       with:
         path: ./
         base: ${{ github.event.pull_request.base.sha }}
